@@ -48,9 +48,11 @@ build-*/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
-Makefile
 install_manifest.txt
 compile_commands.json
+# NOTE: this project ships hand-written Makefiles as part of its source
+# (Source/Makefile, Source/code/**/Makefile, Report/Source/Makefile, ...),
+# so "Makefile" is intentionally NOT ignored here.
 
 # Temporary files
 *.tmp
