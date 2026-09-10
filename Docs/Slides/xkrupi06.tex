@@ -1,0 +1,165 @@
+% **************************************************************************** %
+% Prezentace k obhajobì SEP					 	                               %
+% Autor:	Krupièka Vojtìch	 xkrupi06                                      %
+% Soubor:   xkrupi06.tex                                                       %
+% Datum:    12. 12. 2011                                                       %
+% Kódování: ISO-8859-2                                                         %
+% ---------------------------------------------------------------------------- %
+
+% Definice tøídy dokumentu a dovoz potøebných balíèkù
+\documentclass[pdf,fyma]{prosper}
+\usepackage[latin2]{inputenc}
+\usepackage[czech]{babel} 
+
+\title{\textsc{Bezsnímkové Renderování}} 
+\author{Vojtìch Krupièka}
+\email{xkrupi06@stud.fit.vutbr.cz}
+\institution{FIT VUT v~Brnì \\ 2012}
+
+% Vlastní tìlo dokumentu
+
+\pagestyle{empty} % zru¹í èíslovaní stránky
+\begin{document}
+\maketitle
+
+
+\begin{slide}{Bezsnímkové renderování}
+	\centering
+   	\begin{figure}[ht]
+       	\includegraphics[width=9cm]{fig/teaser.eps}
+       	\label{fig:motivation}
+    \end{figure}
+    
+    \begin{itemize}
+    	\item metoda pro zobrazování poè. grafiky v reálném èase,
+    	\item výbìr pixelu, jeho aktualizace a~okam¾ité zobrazení na výstup,
+    	\item v¾dy aktuální èást pixelù v rastru -- neexistuje ¾ádný celistvý snímek $\rightarrow$ \emph{bezsnímkové renderování}.
+    \end{itemize}
+\end{slide}
+
+
+
+\begin{slide}{Základní varianta}
+    \begin{itemize}
+    	\item výbìr pixelu v rastru (náhodnì, Poissonovy disky, \emph{jittered} vzorkování, problém $n$ vì¾í, \emph{Haltonova} posloupnost),
+    	\item aktualizace barvy pixelu (\emph{raytracer} -- samostatná komponenta),
+    	\item \emph{asynchronní} pixely -- vznik \emph{prostorového rozptylu} (artefakty).
+    \end{itemize}
+
+	\centering
+   	\begin{figure}[ht]
+       	\includegraphics[width=8cm]{fig/fr.eps}
+       	\label{fig:fr}
+    \end{figure}
+
+	{\tiny Obrázek 2: náhodný výbìr pixelu (vlevo) vs. \emph{Haltonova} posloupnost (vpravo).}
+\end{slide}
+
+
+
+\begin{slide}{\emph{Adaptivní} varianta -- øízené vzorkování}
+    \begin{itemize}
+    	\item dìlení obrazu na oblasti (uniformní vs. neuniformní),
+    	\item upøednostnìní \emph{dùle¾ité} oblasti pøed ostatními (priorita oblastí),
+    	\item výbìr a aktualizace pixelu z \emph{dùle¾ité} oblasti.
+    \end{itemize}
+
+	\centering
+   	\begin{figure}[ht]
+       	\includegraphics[width=8cm]{fig/gs.eps}
+       	\label{fig:gs}
+    \end{figure}
+    {\tiny Obrázek 3: $8 \times 8$ oblastí (vlevo), $32 \times 32$ oblastí (uprostøed) vs. $64 \times 64$ oblastí (vpravo).}
+\end{slide}
+
+
+
+\begin{slide}{\emph{Adaptivní} varianta -- rekonstrukce}
+    \begin{itemize}
+    	\item rekonstrukèní filtry -- prostorová a èasová doména oddìlenì,
+    	\item výpoèet derivací a velikosti filtru v ka¾dém aktualizovaném pixelu,
+    	\item øe¹ení anti-aliasingu, získání \emph{motion blur} efektu.
+    \end{itemize}
+
+	\centering
+   	\begin{figure}[ht]
+       	\includegraphics[width=8cm]{fig/rc.eps}
+       	\label{fig:rc}
+    \end{figure}
+    {\tiny Obrázek 4: $4\,500$ vzorkù (uprostøed) vs. $9\,000$ vzorkù (vpravo).}
+\end{slide}
+
+
+
+\begin{slide}{Shrnutí výstupù}
+	\centering
+   	\begin{figure}[ht]
+       	\includegraphics[width=6.0cm]{fig/all.eps}
+       	\label{fig:all}
+    \end{figure}
+    {\tiny Obrázek 5: ideální výstup (vlevo nahoøe), \emph{Haltonova} posloupnost (vpravo nahoøe), øízené vzorkování (vlevo dole) a rekonstrukce (vpravo dole).}
+\end{slide}
+
+
+
+\begin{slide}{Shrnutí práce}
+	\begin{itemize}
+		\item Dosa¾ené výsledky:
+		\begin{itemize}
+			\item prozkoumání alternativ k náhodnému výbìru pixelù z rastru,
+			\item srovnání dvou hlavních implementací \emph{adaptivní} varianty,
+			\item vlastní \emph{adaptivní} renderer, testování a vyhodnocení kvality.
+		\end{itemize}
+	\end{itemize}
+	\begin{itemize}
+		\item Problémy pøi øe¹ení:
+		\begin{itemize}
+			\item nedostatek relevantní literatury a zdrojù,
+			\item problém pøi øe¹ení anti-aliasingu, o¹etøení speciálních stavù.
+		\end{itemize}
+	\end{itemize}
+	\begin{itemize}
+		\item Dal¹í pokraèovaní projektu:
+		\begin{itemize}
+    		\item optimalizace (\emph{raytracer}, rekonstrukce),
+	    	\item mo¾nost implementace neuniformního dìlení obrazu,
+    		\item vyu¾ití sofistikovanìj¹ích rekonstrukèních funkcí.
+	    \end{itemize}    
+	\end{itemize}
+\end{slide}
+
+
+
+\begin{slide}{}
+\begin{thebibliography}{1}
+\providecommand{\url}[1]{\texttt{#1}}
+\providecommand{\urlprefix}{URL }
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi:\discretionary{}{}{}#1}\else
+  \providecommand{\doi}{doi:\discretionary{}{}{}\begingroup
+  \urlstyle{rm}\Url}\fi
+\providecommand{\selectlanguage}[1]{\relax}
+\providecommand{\eprint}[2][]{\url{#2}}
+
+\bibitem{DWWL05}
+Dayal, A.; Woolley, C.; Watson, B.; aj.: Adaptive frameless rendering. In
+  \emph{ACM SIGGRAPH 2005 Courses}, SIGGRAPH '05, 2005.
+
+\bibitem{S06}
+Schlömer, T.: \emph{Frameless Rendering}. Diplomová práce, Universität Ulm,
+  2006.
+
+\bibitem{Z96}
+Zagier, E. J.~S.: Defining and Refining Frameless Rendering. Technická zpráva,
+  Chapel Hill, NC, USA, 1996.
+
+\end{thebibliography}
+\end{slide}
+
+
+
+\part{\normalsize\textbf{Dìkuji za Va¹i pozornost!}}
+
+
+
+\end{document} % konec dokumentu

@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="410" height="410" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<line x1="5" y1="30" x2="405" y2="30" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="55" x2="405" y2="55" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="80" x2="405" y2="80" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="105" x2="405" y2="105" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="130" x2="405" y2="130" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="155" x2="405" y2="155" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="180" x2="405" y2="180" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="205" x2="405" y2="205" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="230" x2="405" y2="230" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="255" x2="405" y2="255" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="280" x2="405" y2="280" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="305" x2="405" y2="305" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="330" x2="405" y2="330" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="355" x2="405" y2="355" stroke="#DDD" stroke-width="1" />
+<line x1="5" y1="380" x2="405" y2="380" stroke="#DDD" stroke-width="1" />
+<line x1="30" y1="5" x2="30" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="55" y1="5" x2="55" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="80" y1="5" x2="80" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="105" y1="5" x2="105" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="130" y1="5" x2="130" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="155" y1="5" x2="155" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="180" y1="5" x2="180" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="205" y1="5" x2="205" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="230" y1="5" x2="230" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="255" y1="5" x2="255" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="280" y1="5" x2="280" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="305" y1="5" x2="305" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="330" y1="5" x2="330" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="355" y1="5" x2="355" y2="405" stroke="#DDD" stroke-width="1" />
+<line x1="380" y1="5" x2="380" y2="405" stroke="#DDD" stroke-width="1" />
+<circle cx="19" cy="11" r="3.1" fill="#F00" stroke="none" />
+<circle cx="34" cy="15" r="3.1" fill="#F00" stroke="none" />
+<circle cx="64" cy="27" r="3.1" fill="#F00" stroke="none" />
+<circle cx="94" cy="23" r="3.1" fill="#F00" stroke="none" />
+<circle cx="116" cy="13" r="3.1" fill="#F00" stroke="none" />
+<circle cx="152" cy="9" r="3.1" fill="#F00" stroke="none" />
+<circle cx="164" cy="8" r="3.1" fill="#F00" stroke="none" />
+<circle cx="180" cy="19" r="3.1" fill="#F00" stroke="none" />
+<circle cx="224" cy="28" r="3.1" fill="#F00" stroke="none" />
+<circle cx="252" cy="16" r="3.1" fill="#F00" stroke="none" />
+<circle cx="255" cy="6" r="3.1" fill="#F00" stroke="none" />
+<circle cx="301" cy="28" r="3.1" fill="#F00" stroke="none" />
+<circle cx="315" cy="5" r="3.1" fill="#F00" stroke="none" />
+<circle cx="342" cy="17" r="3.1" fill="#F00" stroke="none" />
+<circle cx="367" cy="20" r="3.1" fill="#F00" stroke="none" />
+<circle cx="394" cy="5" r="3.1" fill="#F00" stroke="none" />
+<circle cx="18" cy="32" r="3.1" fill="#F00" stroke="none" />
+<circle cx="41" cy="53" r="3.1" fill="#F00" stroke="none" />
+<circle cx="64" cy="30" r="3.1" fill="#F00" stroke="none" />
+<circle cx="81" cy="34" r="3.1" fill="#F00" stroke="none" />
+<circle cx="117" cy="53" r="3.1" fill="#F00" stroke="none" />
+<circle cx="144" cy="51" r="3.1" fill="#F00" stroke="none" />
+<circle cx="166" cy="37" r="3.1" fill="#F00" stroke="none" />
+<circle cx="195" cy="31" r="3.1" fill="#F00" stroke="none" />
+<circle cx="222" cy="52" r="3.1" fill="#F00" stroke="none" />
+<circle cx="244" cy="38" r="3.1" fill="#F00" stroke="none" />
+<circle cx="262" cy="30" r="3.1" fill="#F00" stroke="none" />
+<circle cx="303" cy="50" r="3.1" fill="#F00" stroke="none" />
+<circle cx="324" cy="49" r="3.1" fill="#F00" stroke="none" />
+<circle cx="331" cy="45" r="3.1" fill="#F00" stroke="none" />
+<circle cx="370" cy="30" r="3.1" fill="#F00" stroke="none" />
+<circle cx="399" cy="50" r="3.1" fill="#F00" stroke="none" />
+<circle cx="18" cy="57" r="3.1" fill="#F00" stroke="none" />
+<circle cx="30" cy="72" r="3.1" fill="#F00" stroke="none" />
+<circle cx="57" cy="67" r="3.1" fill="#F00" stroke="none" />
+<circle cx="104" cy="62" r="3.1" fill="#F00" stroke="none" />
+<circle cx="123" cy="77" r="3.1" fill="#F00" stroke="none" />
+<circle cx="134" cy="63" r="3.1" fill="#F00" stroke="none" />
+<circle cx="172" cy="62" r="3.1" fill="#F00" stroke="none" />
+<circle cx="184" cy="72" r="3.1" fill="#F00" stroke="none" />
+<circle cx="208" cy="76" r="3.1" fill="#F00" stroke="none" />
+<circle cx="252" cy="75" r="3.1" fill="#F00" stroke="none" />
+<circle cx="265" cy="79" r="3.1" fill="#F00" stroke="none" />
+<circle cx="281" cy="55" r="3.1" fill="#F00" stroke="none" />
+<circle cx="329" cy="56" r="3.1" fill="#F00" stroke="none" />
+<circle cx="354" cy="63" r="3.1" fill="#F00" stroke="none" />
+<circle cx="361" cy="73" r="3.1" fill="#F00" stroke="none" />
+<circle cx="382" cy="74" r="3.1" fill="#F00" stroke="none" />
+<circle cx="27" cy="103" r="3.1" fill="#F00" stroke="none" />
+<circle cx="51" cy="96" r="3.1" fill="#F00" stroke="none" />
+<circle cx="72" cy="89" r="3.1" fill="#F00" stroke="none" />
+<circle cx="81" cy="102" r="3.1" fill="#F00" stroke="none" />
+<circle cx="127" cy="84" r="3.1" fill="#F00" stroke="none" />
+<circle cx="131" cy="84" r="3.1" fill="#F00" stroke="none" />
+<circle cx="169" cy="92" r="3.1" fill="#F00" stroke="none" />
+<circle cx="195" cy="94" r="3.1" fill="#F00" stroke="none" />
+<circle cx="227" cy="81" r="3.1" fill="#F00" stroke="none" />
+<circle cx="248" cy="81" r="3.1" fill="#F00" stroke="none" />
+<circle cx="274" cy="83" r="3.1" fill="#F00" stroke="none" />
+<circle cx="304" cy="102" r="3.1" fill="#F00" stroke="none" />
+<circle cx="328" cy="97" r="3.1" fill="#F00" stroke="none" />
+<circle cx="332" cy="80" r="3.1" fill="#F00" stroke="none" />
+<circle cx="362" cy="95" r="3.1" fill="#F00" stroke="none" />
+<circle cx="383" cy="98" r="3.1" fill="#F00" stroke="none" />
+<circle cx="16" cy="114" r="3.1" fill="#F00" stroke="none" />
+<circle cx="51" cy="118" r="3.1" fill="#F00" stroke="none" />
+<circle cx="63" cy="105" r="3.1" fill="#F00" stroke="none" />
+<circle cx="93" cy="108" r="3.1" fill="#F00" stroke="none" />
+<circle cx="110" cy="115" r="3.1" fill="#F00" stroke="none" />
+<circle cx="141" cy="116" r="3.1" fill="#F00" stroke="none" />
+<circle cx="178" cy="117" r="3.1" fill="#F00" stroke="none" />
+<circle cx="180" cy="128" r="3.1" fill="#F00" stroke="none" />
+<circle cx="210" cy="120" r="3.1" fill="#F00" stroke="none" />
+<circle cx="233" cy="117" r="3.1" fill="#F00" stroke="none" />
+<circle cx="265" cy="110" r="3.1" fill="#F00" stroke="none" />
+<circle cx="299" cy="110" r="3.1" fill="#F00" stroke="none" />
+<circle cx="320" cy="126" r="3.1" fill="#F00" stroke="none" />
+<circle cx="342" cy="128" r="3.1" fill="#F00" stroke="none" />
+<circle cx="379" cy="109" r="3.1" fill="#F00" stroke="none" />
+<circle cx="382" cy="124" r="3.1" fill="#F00" stroke="none" />
+<circle cx="27" cy="153" r="3.1" fill="#F00" stroke="none" />
+<circle cx="34" cy="136" r="3.1" fill="#F00" stroke="none" />
+<circle cx="57" cy="154" r="3.1" fill="#F00" stroke="none" />
+<circle cx="97" cy="154" r="3.1" fill="#F00" stroke="none" />
+<circle cx="117" cy="143" r="3.1" fill="#F00" stroke="none" />
+<circle cx="138" cy="130" r="3.1" fill="#F00" stroke="none" />
+<circle cx="172" cy="143" r="3.1" fill="#F00" stroke="none" />
+<circle cx="192" cy="142" r="3.1" fill="#F00" stroke="none" />
+<circle cx="222" cy="154" r="3.1" fill="#F00" stroke="none" />
+<circle cx="243" cy="147" r="3.1" fill="#F00" stroke="none" />
+<circle cx="258" cy="131" r="3.1" fill="#F00" stroke="none" />
+<circle cx="294" cy="150" r="3.1" fill="#F00" stroke="none" />
+<circle cx="315" cy="149" r="3.1" fill="#F00" stroke="none" />
+<circle cx="346" cy="151" r="3.1" fill="#F00" stroke="none" />
+<circle cx="359" cy="136" r="3.1" fill="#F00" stroke="none" />
+<circle cx="393" cy="147" r="3.1" fill="#F00" stroke="none" />
+<circle cx="14" cy="164" r="3.1" fill="#F00" stroke="none" />
+<circle cx="34" cy="174" r="3.1" fill="#F00" stroke="none" />
+<circle cx="55" cy="160" r="3.1" fill="#F00" stroke="none" />
+<circle cx="94" cy="173" r="3.1" fill="#F00" stroke="none" />
+<circle cx="109" cy="174" r="3.1" fill="#F00" stroke="none" />
+<circle cx="147" cy="164" r="3.1" fill="#F00" stroke="none" />
+<circle cx="177" cy="160" r="3.1" fill="#F00" stroke="none" />
+<circle cx="187" cy="164" r="3.1" fill="#F00" stroke="none" />
+<circle cx="220" cy="166" r="3.1" fill="#F00" stroke="none" />
+<circle cx="231" cy="173" r="3.1" fill="#F00" stroke="none" />
+<circle cx="261" cy="167" r="3.1" fill="#F00" stroke="none" />
+<circle cx="299" cy="160" r="3.1" fill="#F00" stroke="none" />
+<circle cx="308" cy="168" r="3.1" fill="#F00" stroke="none" />
+<circle cx="339" cy="173" r="3.1" fill="#F00" stroke="none" />
+<circle cx="358" cy="162" r="3.1" fill="#F00" stroke="none" />
+<circle cx="387" cy="168" r="3.1" fill="#F00" stroke="none" />
+<circle cx="19" cy="186" r="3.1" fill="#F00" stroke="none" />
+<circle cx="52" cy="199" r="3.1" fill="#F00" stroke="none" />
+<circle cx="56" cy="203" r="3.1" fill="#F00" stroke="none" />
+<circle cx="103" cy="201" r="3.1" fill="#F00" stroke="none" />
+<circle cx="116" cy="203" r="3.1" fill="#F00" stroke="none" />
+<circle cx="145" cy="200" r="3.1" fill="#F00" stroke="none" />
+<circle cx="156" cy="188" r="3.1" fill="#F00" stroke="none" />
+<circle cx="180" cy="195" r="3.1" fill="#F00" stroke="none" />
+<circle cx="206" cy="181" r="3.1" fill="#F00" stroke="none" />
+<circle cx="249" cy="184" r="3.1" fill="#F00" stroke="none" />
+<circle cx="267" cy="202" r="3.1" fill="#F00" stroke="none" />
+<circle cx="302" cy="202" r="3.1" fill="#F00" stroke="none" />
+<circle cx="320" cy="186" r="3.1" fill="#F00" stroke="none" />
+<circle cx="354" cy="184" r="3.1" fill="#F00" stroke="none" />
+<circle cx="358" cy="183" r="3.1" fill="#F00" stroke="none" />
+<circle cx="381" cy="182" r="3.1" fill="#F00" stroke="none" />
+<circle cx="13" cy="223" r="3.1" fill="#F00" stroke="none" />
+<circle cx="39" cy="209" r="3.1" fill="#F00" stroke="none" />
+<circle cx="59" cy="213" r="3.1" fill="#F00" stroke="none" />
+<circle cx="91" cy="217" r="3.1" fill="#F00" stroke="none" />
+<circle cx="110" cy="210" r="3.1" fill="#F00" stroke="none" />
+<circle cx="138" cy="226" r="3.1" fill="#F00" stroke="none" />
+<circle cx="166" cy="219" r="3.1" fill="#F00" stroke="none" />
+<circle cx="203" cy="229" r="3.1" fill="#F00" stroke="none" />
+<circle cx="225" cy="216" r="3.1" fill="#F00" stroke="none" />
+<circle cx="239" cy="215" r="3.1" fill="#F00" stroke="none" />
+<circle cx="255" cy="212" r="3.1" fill="#F00" stroke="none" />
+<circle cx="287" cy="228" r="3.1" fill="#F00" stroke="none" />
+<circle cx="325" cy="219" r="3.1" fill="#F00" stroke="none" />
+<circle cx="336" cy="225" r="3.1" fill="#F00" stroke="none" />
+<circle cx="366" cy="224" r="3.1" fill="#F00" stroke="none" />
+<circle cx="389" cy="224" r="3.1" fill="#F00" stroke="none" />
+<circle cx="25" cy="235" r="3.1" fill="#F00" stroke="none" />
+<circle cx="49" cy="251" r="3.1" fill="#F00" stroke="none" />
+<circle cx="64" cy="247" r="3.1" fill="#F00" stroke="none" />
+<circle cx="95" cy="245" r="3.1" fill="#F00" stroke="none" />
+<circle cx="106" cy="238" r="3.1" fill="#F00" stroke="none" />
+<circle cx="135" cy="231" r="3.1" fill="#F00" stroke="none" />
+<circle cx="171" cy="234" r="3.1" fill="#F00" stroke="none" />
+<circle cx="186" cy="248" r="3.1" fill="#F00" stroke="none" />
+<circle cx="220" cy="254" r="3.1" fill="#F00" stroke="none" />
+<circle cx="240" cy="254" r="3.1" fill="#F00" stroke="none" />
+<circle cx="273" cy="251" r="3.1" fill="#F00" stroke="none" />
+<circle cx="295" cy="236" r="3.1" fill="#F00" stroke="none" />
+<circle cx="329" cy="249" r="3.1" fill="#F00" stroke="none" />
+<circle cx="347" cy="239" r="3.1" fill="#F00" stroke="none" />
+<circle cx="369" cy="231" r="3.1" fill="#F00" stroke="none" />
+<circle cx="389" cy="250" r="3.1" fill="#F00" stroke="none" />
+<circle cx="12" cy="270" r="3.1" fill="#F00" stroke="none" />
+<circle cx="41" cy="261" r="3.1" fill="#F00" stroke="none" />
+<circle cx="61" cy="259" r="3.1" fill="#F00" stroke="none" />
+<circle cx="100" cy="268" r="3.1" fill="#F00" stroke="none" />
+<circle cx="128" cy="268" r="3.1" fill="#F00" stroke="none" />
+<circle cx="132" cy="259" r="3.1" fill="#F00" stroke="none" />
+<circle cx="159" cy="275" r="3.1" fill="#F00" stroke="none" />
+<circle cx="188" cy="266" r="3.1" fill="#F00" stroke="none" />
+<circle cx="215" cy="258" r="3.1" fill="#F00" stroke="none" />
+<circle cx="254" cy="275" r="3.1" fill="#F00" stroke="none" />
+<circle cx="266" cy="274" r="3.1" fill="#F00" stroke="none" />
+<circle cx="281" cy="255" r="3.1" fill="#F00" stroke="none" />
+<circle cx="311" cy="271" r="3.1" fill="#F00" stroke="none" />
+<circle cx="335" cy="269" r="3.1" fill="#F00" stroke="none" />
+<circle cx="371" cy="270" r="3.1" fill="#F00" stroke="none" />
+<circle cx="390" cy="272" r="3.1" fill="#F00" stroke="none" />
+<circle cx="14" cy="302" r="3.1" fill="#F00" stroke="none" />
+<circle cx="39" cy="299" r="3.1" fill="#F00" stroke="none" />
+<circle cx="68" cy="296" r="3.1" fill="#F00" stroke="none" />
+<circle cx="101" cy="299" r="3.1" fill="#F00" stroke="none" />
+<circle cx="127" cy="284" r="3.1" fill="#F00" stroke="none" />
+<circle cx="145" cy="285" r="3.1" fill="#F00" stroke="none" />
+<circle cx="166" cy="282" r="3.1" fill="#F00" stroke="none" />
+<circle cx="194" cy="304" r="3.1" fill="#F00" stroke="none" />
+<circle cx="220" cy="293" r="3.1" fill="#F00" stroke="none" />
+<circle cx="242" cy="288" r="3.1" fill="#F00" stroke="none" />
+<circle cx="279" cy="286" r="3.1" fill="#F00" stroke="none" />
+<circle cx="281" cy="299" r="3.1" fill="#F00" stroke="none" />
+<circle cx="317" cy="301" r="3.1" fill="#F00" stroke="none" />
+<circle cx="354" cy="290" r="3.1" fill="#F00" stroke="none" />
+<circle cx="369" cy="295" r="3.1" fill="#F00" stroke="none" />
+<circle cx="402" cy="283" r="3.1" fill="#F00" stroke="none" />
+<circle cx="12" cy="305" r="3.1" fill="#F00" stroke="none" />
+<circle cx="44" cy="305" r="3.1" fill="#F00" stroke="none" />
+<circle cx="71" cy="324" r="3.1" fill="#F00" stroke="none" />
+<circle cx="85" cy="319" r="3.1" fill="#F00" stroke="none" />
+<circle cx="124" cy="319" r="3.1" fill="#F00" stroke="none" />
+<circle cx="133" cy="315" r="3.1" fill="#F00" stroke="none" />
+<circle cx="160" cy="322" r="3.1" fill="#F00" stroke="none" />
+<circle cx="197" cy="315" r="3.1" fill="#F00" stroke="none" />
+<circle cx="214" cy="308" r="3.1" fill="#F00" stroke="none" />
+<circle cx="247" cy="307" r="3.1" fill="#F00" stroke="none" />
+<circle cx="277" cy="322" r="3.1" fill="#F00" stroke="none" />
+<circle cx="288" cy="319" r="3.1" fill="#F00" stroke="none" />
+<circle cx="324" cy="317" r="3.1" fill="#F00" stroke="none" />
+<circle cx="335" cy="325" r="3.1" fill="#F00" stroke="none" />
+<circle cx="376" cy="323" r="3.1" fill="#F00" stroke="none" />
+<circle cx="392" cy="309" r="3.1" fill="#F00" stroke="none" />
+<circle cx="29" cy="347" r="3.1" fill="#F00" stroke="none" />
+<circle cx="35" cy="336" r="3.1" fill="#F00" stroke="none" />
+<circle cx="77" cy="353" r="3.1" fill="#F00" stroke="none" />
+<circle cx="94" cy="350" r="3.1" fill="#F00" stroke="none" />
+<circle cx="128" cy="335" r="3.1" fill="#F00" stroke="none" />
+<circle cx="153" cy="335" r="3.1" fill="#F00" stroke="none" />
+<circle cx="159" cy="351" r="3.1" fill="#F00" stroke="none" />
+<circle cx="189" cy="331" r="3.1" fill="#F00" stroke="none" />
+<circle cx="225" cy="350" r="3.1" fill="#F00" stroke="none" />
+<circle cx="230" cy="335" r="3.1" fill="#F00" stroke="none" />
+<circle cx="270" cy="337" r="3.1" fill="#F00" stroke="none" />
+<circle cx="304" cy="340" r="3.1" fill="#F00" stroke="none" />
+<circle cx="307" cy="343" r="3.1" fill="#F00" stroke="none" />
+<circle cx="332" cy="334" r="3.1" fill="#F00" stroke="none" />
+<circle cx="357" cy="353" r="3.1" fill="#F00" stroke="none" />
+<circle cx="392" cy="331" r="3.1" fill="#F00" stroke="none" />
+<circle cx="8" cy="373" r="3.1" fill="#F00" stroke="none" />
+<circle cx="45" cy="364" r="3.1" fill="#F00" stroke="none" />
+<circle cx="73" cy="362" r="3.1" fill="#F00" stroke="none" />
+<circle cx="102" cy="378" r="3.1" fill="#F00" stroke="none" />
+<circle cx="109" cy="365" r="3.1" fill="#F00" stroke="none" />
+<circle cx="131" cy="360" r="3.1" fill="#F00" stroke="none" />
+<circle cx="178" cy="355" r="3.1" fill="#F00" stroke="none" />
+<circle cx="203" cy="367" r="3.1" fill="#F00" stroke="none" />
+<circle cx="208" cy="371" r="3.1" fill="#F00" stroke="none" />
+<circle cx="238" cy="367" r="3.1" fill="#F00" stroke="none" />
+<circle cx="277" cy="356" r="3.1" fill="#F00" stroke="none" />
+<circle cx="294" cy="379" r="3.1" fill="#F00" stroke="none" />
+<circle cx="308" cy="379" r="3.1" fill="#F00" stroke="none" />
+<circle cx="331" cy="367" r="3.1" fill="#F00" stroke="none" />
+<circle cx="375" cy="369" r="3.1" fill="#F00" stroke="none" />
+<circle cx="403" cy="367" r="3.1" fill="#F00" stroke="none" />
+<circle cx="6" cy="394" r="3.1" fill="#F00" stroke="none" />
+<circle cx="37" cy="382" r="3.1" fill="#F00" stroke="none" />
+<circle cx="61" cy="391" r="3.1" fill="#F00" stroke="none" />
+<circle cx="104" cy="395" r="3.1" fill="#F00" stroke="none" />
+<circle cx="129" cy="393" r="3.1" fill="#F00" stroke="none" />
+<circle cx="149" cy="383" r="3.1" fill="#F00" stroke="none" />
+<circle cx="166" cy="400" r="3.1" fill="#F00" stroke="none" />
+<circle cx="193" cy="386" r="3.1" fill="#F00" stroke="none" />
+<circle cx="215" cy="383" r="3.1" fill="#F00" stroke="none" />
+<circle cx="230" cy="402" r="3.1" fill="#F00" stroke="none" />
+<circle cx="278" cy="401" r="3.1" fill="#F00" stroke="none" />
+<circle cx="287" cy="393" r="3.1" fill="#F00" stroke="none" />
+<circle cx="312" cy="381" r="3.1" fill="#F00" stroke="none" />
+<circle cx="334" cy="396" r="3.1" fill="#F00" stroke="none" />
+<circle cx="375" cy="402" r="3.1" fill="#F00" stroke="none" />
+<circle cx="388" cy="381" r="3.1" fill="#F00" stroke="none" />
+<rect x="5" y="5" width="400" height="400" stroke="#000" stroke-width="3" fill="none" />
+</svg>

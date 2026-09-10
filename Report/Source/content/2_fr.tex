@@ -1,0 +1,441 @@
+%----------------------------------------------------------------------------
+% soubor: 2_fr.tex
+% autor: Vojtìch Krupièka, xkrupi06
+% datum: 03.01.2012
+%----------------------------------------------------------------------------
+\chapter{Bezsnímkové renderování}
+\label{chap:2_fr}
+
+\section{Motivace}
+\label{sec:2_motivation}
+
+Jak ji¾ bylo øeèeno v~úvodu, \emph{bezsnímkové renderování} (z~angl. \emph{frameless rendering}) je nové paradigma v~poèítaèové grafice, které se sna¾í zmìnit pohled na klasický pøístup\footnote{V dal¹ím textu se bude \emph{klasickým pøístupem} rozumìt pøístup vyu¾ívající právì dva \emph{buffery}.} pro zobrazování poèítaèové grafiky. Hlavním cílem \emph{bezsnímkového renderování} (viz~\cite{BFMZ94}) je snaha sní¾it odezvu na u¾ivatelské vstupy pøi zachování kvalitního grafického výstupu. Toho je mo¾né dosáhnout výbìrem vhodné sady pixelù, jejich aktualizací a~okam¾itým zobrazením na výstup. A~to i~pøesto, ¾e v~daném okam¾iku nemusí být v¹echny hodnoty \uv{nových} pixelù spoèítány. Dùsledkem toho je naprosto odli¹né vnímání tvorby poèítaèové grafiky, jako zobrazování snímkù na displeji v~reálném èase. 
+
+Prvním pøedpokladem, jak je uvedeno v~\cite{BFMZ94}, je skuteènost, ¾e nedochází k~vykreslování obrazu zleva doprava po jednotlivých pixelech a~shora dolù po jednotlivých øádcích. A~za druhé, jejich pøístup umo¾òuje získat aktuální grafický výstup v~jakémkoliv èasovém okam¾iku. Tedy v¾dy, kdy¾ je to nezbytnì nutné (na základì zmìny stavu aplikace nebo jako reakci na u¾ivatelské vstupy). Z~toho vyplývá, ¾e neexistuje ¾ádná sekvence snímkù tvoøících animaci, ¾ádný poèet zobrazených snímkù za vteøinu a~dokonce ani ¾ádný konkrétní celistvý snímek. Proto název \emph{bezsnímkové renderování}.
+
+
+\begin{figure}[ht]
+	\centering
+	\subfloat[Ideální obraz]{\includegraphics[width=5cm]{./fig/comparation/ideal.png} \label{fig:2_comparation-1}}
+	\subfloat[Tradièní \emph{bezsnímková} metoda]{\includegraphics[width=5cm]{./fig/comparation/fr.png} \label{fig:2_comparation-2}}
+	\subfloat[\emph{Adaptivní} varianta]{\includegraphics[width=5cm]{./fig/comparation/rc.png} \label{fig:2_comparation-3}}
+
+	\caption{Obrázek srovnávající ideální výstup získaný \emph{raytracerem} s výstupem základního \emph{besnímkového rendereru} a s výstupem \emph{adaptivní} varianty, která vyu¾ívá øízeného vzorkování a rekonstrukce obrazu. Zatímco výstup základní metody obsahuje mno¾ství artefaktù, její adaptivní varianta poskytuje relativnì vìrný výstup bez artefaktù a s automatickým vyhlazením hran. A to pøi stejném poètu aktualizovaných pixelù v jednom kroku (kterých v tomto pøípadì bylo $9\,000$, tedy ménì ne¾ $14\%$ v¹ech pixelù v rastru).}
+	\label{fig:2_comparation}
+\end{figure}
+
+
+V~\cite{BFMZ94} vycházejí z~jednoduché premisy, která øíká, ¾e pro standardní obnovovací frekvenci souèasných displejù ($60Hz$ a~více), není nezbytnì nutné poka¾dé pøepoèítávat a~pøekreslovat celý výstup, je¾ má být zobrazen. Nejen ¾e to není nutné, ale ani lidský mozek na to není schopen reagovat\footnote{Pøi animacích vzniká tzv. \emph{motion smear}, podle kterého je lidský mozek schopen rozli¹ovat impulsy pøicházející na sítnici oka minimálnì ka¾dých $125ms$ (viz~\cite{B86}).}. Naopak staèí, aby bylo aktualizováno dostateèné mno¾ství pixelù, které aktualizaci vy¾adují, a~pokud bude tato sada dostateènì malá a~výpoèet dostateènì rychlý, lze sní¾it odezvu a~zcela opustit koncept vyu¾ívající dvou \emph{bufferù}. Odvìtví poèítaèové grafiky, do kterého \emph{bezsnímkové renderování} lze spí¹e zaøadit, a~kde mù¾e vyu¾ít svùj potenciál naplno, tedy nele¾í mezi klasickými displeji (ty na tento koncept nejsou ani technicky stavìny), ale spí¹e v~oblasti systémù zalo¾ených na vnímání a~virtuální realitì. Cílem není pøesná simulace chování kamery jako elektronického zaøízení, ale naopak snaha popsat a~simulovat princip èinnosti lidského oka. Jak je ukázáno v~\cite{Z98}, lidské vnímání okolního svìta zrakem je nejintenzivnìj¹í uprostøed zorného pole, kde¾to k~jeho okrajùm slábne, èeho¾ lze vyu¾ít napø. u velkých displejù, nebo pøi pou¾ití \emph{head mounted} displejù.
+
+
+\section{Historie a~pøedchozí výzkum}
+\label{sec:2_history}
+
+Paradigma \emph{bezsnímkového renderování} vzniká v~roce $1994$ a~vychází z~\cite{BFMZ94}, ve kterém byla nastínìna úvaha zamý¹lející se nad tím, proè je princip pou¾ívání dvou \emph{bufferù} ¹patný. ®ádné výraznìj¹í definování a~formalizování metody provedeno nebylo. Od té doby vy¹lo pouze nìkolik publikací, které se \emph{bezsnímkovému renderování} vìnují ve vìt¹í míøe, nejvíce pak~\cite{Z96}, kde jsou polo¾eny formální základy této metody a~definovány a~popsány rùzné aspekty (napø. faktory podílející se na vzniku artefaktù). Dal¹í publikace autorky \emph{Ellen J. Scher Zieger} následují vzápìtí --~\cite{Z97a},~\cite{Z97b} a~\cite{Z98}. A~to bylo na dlouhou dobu v¹e. Na tyto práce bylo navázáno o pìt let pozdìji v~\cite{DWL02} a~\cite{DWLW04}, co¾ byla pøíprava pro tzv. \emph{adaptivní variantu} publikovanou v~\cite{DWWL05}. Její autoøi se sna¾í roz¹íøit klasické pojetí \emph{bezsnímkového renderování} o~tzv. \emph{øízené vzorkování}, které vybírá pixely pro aktualizaci v~místech nejpravdìpodobnìj¹í zmìny (napø. hrany objektù), a~následnou \emph{rekonstrukci obrazu} (více viz kapitola~\ref{chap:3_afr}). Poslední dostupnou literaturou jsou dvì diplomové práce~\cite{V06} a~\cite{S06} na toto téma. 
+
+Tato práce vychází právì z~èlánkù a~dìl zmínìných v~pøedchozím odstavci a~pokou¹í se v¹e spojit do jednotného uceleného textu, který by mìl ètenáøi poskytnou úplné informace o~metodì \emph{bezsnímkového renderování}. Kromì toho byla znaèná èást úsilí vìnována návrhu a~implementaci vlastní aplikace pro demonstraci tohoto paradigmatu.
+
+
+\section{Srovnání s~klasickým pøístupem}
+\label{sec:2_comparation}
+
+Jak bylo nastínìno v~úvodní kapitole, klasický pøístup trpí pøedev¹ím neaktuálností zobrazovaného výstupu na displeji. Výpoèet snímku, který je zapisován do pomocného \emph{bufferu}, trvá urèitý èas $t$. Aby ale mohl vlastní výpoèet zaèít, je tøeba \uv{uzamknout} aktuální stav aplikace a~ten se po dobu $t$ nemìní. V~okam¾iku, kdy je celý snímek spoèítán, je ji¾ $t$ jednotek starý. V~tomto okam¾iku je zobrazen na displeji (výmìnou obou \emph{bufferù} v~pamìti grafické karty), kde setrvá dal¹ích $t$ jednotek, ne¾ je vypoèítán následující snímek. Celkové stáøí ka¾dého snímku je tedy $2t$. Princip èinnosti klasického pøístupu je popsán pomocí algoritmu~\ref{alg:2_traditional}.
+
+
+\begin{algorithm}[ht]
+alokuj pamì» pro \texttt{frameBuffer} o~rozmìrech $X \times Y$\;
+\ForEver{ \nllabel{alg:ln2:2_traditional}
+	\For{$x \leftarrow 0$ \emph{\KwTo}X}{ \nllabel{alg:ln3:2_traditional}
+		\For{$y \leftarrow 0$ \emph{\KwTo}Y}{ \nllabel{alg:ln4:2_traditional}
+			\texttt{frameBuffer($x$, $y$)} $\leftarrow$ \texttt{spoèítejBarvuNa($x$, $y$)}\;
+		}	
+	}
+	prohoï oba \emph{buffery} na grafické kartì a~zobraz aktuální\;
+}
+\caption{Pseudokód pro klasický pøístup s~vyu¾itím dvou \emph{bufferù}.}
+\label{alg:2_traditional}
+\end{algorithm}
+
+
+Jedná se o~velmi jednoduchý algoritmus, který nejprve alokuje dostateèné mno¾ství pamìti pro ulo¾ení rastru do dvojrozmìrného pole \texttt{frameBuffer} o~daných rozmìrech $X$ a~$Y$. Poté v~nekoneèné smyèce (na øádku~\ref{alg:ln2:2_traditional}), resp. dokud pøicházejí u¾ivatelské vstupy nebo není aplikace explicitnì ukonèena, poèítá hodnoty pixelù pro ka¾dý øádek zleva doprava a~odshora dolù. Jakmile jsou hodnoty v¹ech pixelù spoèítané a zapsané do \texttt{frameBufferu}, je mo¾né jeho obsah zobrazit na výstup (výmìnou obou \emph{bufferù} na grafické kartì). Pokud ale vnoøené smyèky z~øádkù~\ref{alg:ln3:2_traditional} a~\ref{alg:ln4:2_traditional} trvají pøíli¹ dlouho, je odezva pomalá a~èím pomalej¹í odezva bude, tím ménì celých snímkù bude zobrazeno za jednotku èasu. To mù¾e zpùsobit trhání animace, které mù¾e být postøehnutelné lidským okem.
+
+Princip \emph{bezsnímkového renderování} je v¹ak zcela jiný a~je nastínìn v~algoritmu~\ref{alg:2_fr_basic}. Obì vnoøené smyèky vypadly, stejnì tak nutnost alokace \emph{bufferu}. V~ka¾dé iteraci hlavní, nekoneèné smyèky jsou nejprve na øádku~\ref{alg:ln2:2_fr_basic} náhodnì vybrány dvì souøadnice $x$ a~$y$, pro které je na øádku~\ref{alg:ln3:2_fr_basic} spoèítána barva. Ta je poté okam¾itì zobrazena na výstupu. Odezva tedy závisí pouze na slo¾itosti spoèítání barvy jednoho pixelu funkcí \texttt{spoèítejBarvuNa()}. Algoritmus~\ref{alg:2_fr_basic} pøedstavuje ideální øe¹ení \emph{bezsnímkového renderování}. Bohu¾el dne¹ní grafické karty ani zobrazovací zaøízení nejsou na takovýto pøístup stavìny a~neumìjí zmìny promítat na výstup okam¾itì. Z~toho plyne omezení, se kterým je nutné pøi implementaci poèítat. Algoritmus~\ref{alg:2_fr_basic} lze upravit tak, aby vyhovoval dne¹ním technologiím. Jeho podoba je zobrazena v~algoritmu~\ref{alg:2_fr_extended}.
+
+
+\begin{algorithm}[ht]
+\ForEver{
+	($x$, $y$) $\leftarrow$ \texttt{získejNáhodnýPixel()}\; \nllabel{alg:ln2:2_fr_basic}
+	\texttt{barva} $\leftarrow$ \texttt{spoèítejBarvuNa($x$, $y$)}\; \nllabel{alg:ln3:2_fr_basic}
+	po¹li novou barvu na displej na souøadnice ($x$, $y$)\;
+} 
+\caption{Pseudokód pro \emph{bezsnímkové renderování}, který vychází z~jeho hlavní my¹lenky.}
+\label{alg:2_fr_basic}
+\end{algorithm}
+
+
+\begin{algorithm}[ht]
+alokuj pamì» pro \texttt{frameBuffer} o~rozmìrech $X \times Y$\;
+\ForEver{
+	\While{není nutné pøekreslit displej}{ \nllabel{alg:ln3:2_fr_extended}
+		($x$, $y$) $\leftarrow$ \texttt{získejNáhodnýPixel()}\; \nllabel{alg:ln4:2_fr_extended}
+		\texttt{frameBuffer($x$, $y$)} $\leftarrow$ \texttt{spoèítejBarvuNa($x$, $y$)}\; \nllabel{alg:ln5:2_fr_extended}
+	}
+	prohoï oba \emph{buffery} na grafické kartì a~zobraz aktuální\;
+} 
+\caption{Pseudokód pro \emph{bezsnímkové renderování}, který bere v~úvahu dne¹ní technologie grafických karet a~zobrazovacích zaøízení.}
+\label{alg:2_fr_extended}
+\end{algorithm}
+
+
+Algoritmus~\ref{alg:2_fr_extended} ji¾ zohledòuje dne¹ní technologie. Opìt se vrátil \texttt{frameBuffer}, jeho¾ pøítomnost je bohu¾el nezbytná. Vnitøní \texttt{while} cyklus poèítá na øádcích~\ref{alg:ln4:2_fr_extended} a~\ref{alg:ln5:2_fr_extended} novou barvu náhodnì vybraného pixelu, stejnì jako v~algoritmu~\ref{alg:2_fr_basic}, dokud není nutné tento cyklus zastavit a~tím vynutit pøekreslení obrazovky (opìt zámìnou obou \emph{bufferù}). Terminaci \texttt{while} cyklu je mo¾né nastavit explicitnì (napø. ka¾dých $0{,}04s$ a~tím zajistit konstantní zobrazovací frekvenci $25Hz$) nebo implicitnì (napø. pøi konkrétních u¾ivatelských vstupech, kdy je pøekreslení nutné -- zmìna pozice kamery, apod.).
+
+
+Z vý¹e pøedstavených algoritmù jsou klíèové obì uvedené funkce \texttt{spoèítejBarvuNa()} a~\texttt{získejNáhodnýPixel()}. První z~nich má skuteèný dopad na celkovou odezvu a~poèet pixelù, které bude mo¾né aktualizovat v~daném èasovém okam¾iku. Její implementace zpravidla bývá zalo¾ena na jednoduchém \emph{raytraceru}, který posílá paprsky do scény a poèítá výslednou barvu pixelu. Druhá funkce -- \texttt{získejNáhodnýPixel()} -- je ji¾ ponìkud zajímavìj¹í, proto¾e výbìr náhodného pixelu sebou pøiná¹í faktory, které mají hlavní podíl na výsledné kvalitì výstupu. Více o~mo¾ných implementacích této funkce viz kapitola~\ref{sec:2_monte_carlo} a~kapitola~\ref{sec:3_guiding}.
+
+
+\section{Definice \emph{bezsnímkového renderování}}
+\label{sec:2_definition}
+
+Základní princip metody \emph{bezsnímkového renderování} byl ji¾ nastínìn v~kapitole~\ref{sec:2_motivation} a~\ref{sec:2_comparation}. Jedním z nejvýznamnìj¹ích kladù této metody je generování grafického výstupu, který je v¾dy aktuální, by» se zpravidla jedná pouze o jeden pixel, nebo skupinu pixelù. Na druhou stranu je výstup metody znehodnocen výskytem artefaktù v obraze. Metoda \emph{bezsnímkového renderování} toti¾ provádí èasový \emph{supersampling}\footnote{Technika vyu¾ívaná v~poèítaèové grafice napø. pro odstranìní aliasù, která pro jeden pixel pou¾ije nìkolik vzorkù -- subpixelù -- a~výsledná hodnota -- barva -- pixelu je prùmìrnou hodnotou v¹ech vzorkù.} a~prostorový \emph{subsampling}\footnote{Nebo-li \emph{podvzorkování}, tedy pro nìkolik pixelù se pou¾ije pouze jeden vzorek.}. 
+
+Èasový \emph{supersampling} proto, ¾e pixely jsou zasílány na výstup v~men¹ích èasových intervalech (èastìji ne¾ pøi pou¾ití tradièní metody) a~prostorový \emph{subsampling} proto, ¾e poèet pixelù poslaných na výstup v~daném okam¾iku zdaleka nepokrývá celé rozli¹ení displeje. Artefakty v obraze se pak objevují zejména tam, kde dochází k výrazným zmìnám v geometrii, osvìtlení nebo pohybu kamery. Novì aktualizované pixely sice odpovídají skuteènosti, ale jeliko¾ jich je v¾dy jen nepatrná èást, jeví se jako ¹um rozprostøený pøes ostatní, neaktualizované a neplatné pixely. Jedná se o tzv. \emph{asynchronní pixely}, rozptýlené body v rastru, které výraznì zhor¹ují kvalitu výstupu. Prostorový rozptyl pixelù je oznaèován jako \emph{spatial scatter}.
+
+
+\subsection{Princip postupného zdokonalování}
+\label{ssec:2_progressive_refinement}
+
+Asynchronními pixely jsou oznaèovány v¹echny platné aktualizované pixely v rastru. Prostorový rozptyl pixelù pak bude vìt¹í pokud bude docházet k rapidním zmìnám geometrie uvnitø scény nebo pokud bude v jednom kroku aktualizováno pøíli¹ málo pixelù. Pokud naopak bude scéna statická, nebo se animace zpomalí, výstup by se mìl velmi rychle blí¾it k ideálnímu obrazu. Tento princip je v~\cite{Z96} oznaèen jako \emph{princip postupného zdokonalování}, který spoèívá v opakování urèitého kroku (v tomto pøípadì se krokem rozumí výbìr a aktualizace vhodné sady pixelù). Pokud bude daný krok zopakován nìkolikrát, výstup bude hrubý a nesouvislý, dal¹í opakování by mìla výstup postupnì zdokonalovat a¾ k ideálnímu obrazu.
+
+Vý¹e zmínìný krok byl poprvé pøedstaven v~\cite{BFGS86} jako tzv. \emph{golden thread}. Podobnì je v~\cite{BFMZ94} \emph{golden thread} definován jako proces, pomocí kterého je vybírána vhodná sada pixelù pro aktualizaci. Pokud je výbìr této sady správný a její mohutnost optimální, aktualizace pixelù je dostateènì rychlá a výstup se bude postupnì zdokonalovat. To se mù¾e projevit sní¾ením prostorového rozptylu, k èemu¾ dochází právì ve statických scénách, nebo pokud se animace ve scénì zpomalí nebo úplnì zastaví.
+
+
+\subsection{Výbìr správné sady pixelù}
+\label{ssec:2_approaches}
+
+Výbìr správné sady pixelù vhodných k aktualizaci je dùle¾itým krokem ke sní¾ení prostorového rozptylu a tím i ke zlep¹ení celkové kvality výstupu. Zpùsobù, kterými definovat správnou sadu takových pixelù je více a v jednotlivých implementacích se rozcházejí. Napø. v~\cite{BFMZ94} byl zvolen náhodný výbìr pixelù napøíè rastrem a to tak, ¾e v ka¾dém kroku je aktualizována v¾dy jedna tøetina z celkového poètu v¹ech pixelù. Tím, jak je v~\cite{BFMZ94} uvedeno, je docíleno daleko plynulej¹ích pøechodù mezi jednotlivými snímky, ne¾ pøi klasickém zpùsobu vyu¾ívajícím pøítomnosti dvou bufferù. Jiným pøístupem je vyu¾ití øízeného vzorkování, které bylo pøedstaveno v~\cite{DWWL05} v rámci \emph{adaptivní} varianty \emph{bezsnímkového renderování} a je mu vìnována kapitola~\ref{sec:3_guiding}. V~\cite{Z96} byly pøedstaveny tøi mo¾né pøístupy, které øe¹í právì výbìr sady pixelù podle informací dostupných pøímo z rastru, ze scény nebo z okolních pixelù.
+
+
+\begin{description}
+	\item[Hranièní vzorkování:] jeden z uvedených zpùsobù spoèívá v~zamìøení se na hrany objektù ve scénì. Scéna samotná si musí uchovávat informace o~v¹ech entitách, které obsahuje (svìtla, kameru, objekty -- primitiva, materiály, textury, apod.) bìhem animace. Aby bylo mo¾né zamìøit se na hrany objektù, je nutné znát hodnotu gradientu ve v¹ech pixelech. Tato hodnota bude vy¹¹í právì v~okolí hran. Porovnáním hodnot gradientu mezi sousedními pixely lze snadno odvodit, které z~nich le¾í na nìjaké hranì a~pøi aktualizaci se zamìøit právì na nì.
+	
+	\item[Stárnutí pixelù podle jejich okolí:] jeliko¾ èistì náhodný výbìr pixelù dosahuje vìt¹ího výskytu prostorového rozptylu, je v~\cite{Z96} navrhnut post-processing obrazu vyu¾ívající hodnoty sousedních pixelù le¾ících v~jejich osmi-okolí. Hodnota ka¾dého pixelu, která ji¾ není platná (pixel nebyl po del¹í dobu aktualizován), mù¾e být upravena podle hodnot stále platných sousedních pixelù, kde pozice v~osmi-okolí sousedního pixelu udává váhu, kterou je jeho hodnota vynásobena a~pøiètena k~pùvodní hodnotì neplatného pixelu. Váhy i~samotný princip je znázornìn na obrázku~\ref{fig:2_pixel_aging}. Sdílení informací mezi sousedními pixely lze chápat jako automatické zapojení konvoluèního filtru, jeho¾ výsledkem bude rozmazání obrazu a~tím mo¾né zlep¹ení kvality výstupu.	
+
+	\item[Energie pixelù je vyu¾ita pro budoucí výpoèty:] Dal¹ím konceptem, který je rovnì¾ diskutován v~\cite{Z96}, je mo¾nost poèítat s~tzv. \emph{energií pixelu}. Ta je definována jako cena nutná pro spoèítání hodnoty daného pixelu a~mù¾e být vyu¾ita pro výpoèet budoucích pixelù. Ty pak lze vybírat na základì predikce, která zohledòuje pohyb kamery, pohyby objektù a~u¾ivatelské vstupy. Výsledkem je pak redukce poètu pixelù, které je nezbytnì nutné aktualizovat, co¾ ov¹em nemusí mít nutnì vliv na sní¾ení kvality obrazu.
+\end{description}
+
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=12cm]{./fig/fr_aging_2.pdf}
+	\caption{Obrázek pøevzatý z~\cite{Z96} ilustruje vyu¾ití vah novìj¹ích pixelù le¾ících v~osmi-okolí neaktuálních pixelù. Pixel $P$ je ji¾ neplatný. Proto je jeho hodnota pøed zobrazením upravena stále platnými sousedními pixely $X$, pøièem¾ jejich hodnota je násobena vahou podle pozice v~osmi-okolí a~následnì pøiètena k~pùvodní hodnotì pixelu $P$.}
+	\label{fig:2_pixel_aging}
+\end{figure}
+
+
+\subsection{\emph{Bezsnímkový} vykreslovací øetìzec}
+\label{ssec:2_pipeline}
+
+V~\cite{Z96} je popsán \emph{vykreslovací øetìzec} vykreslovací øetìzec, který se skládá z~\emph{rendereru} a~\emph{displeje}. Na rozdíl od klasického chápaní displeje jako rastru pixelù zarovnaného do uniformní møí¾ky jsou diskutovány alternativy, které se více pøibli¾ují principùm, na nich¾ je zalo¾ena èinnost lidského oka. \emph{Ellen J. Scher Zaiger} v~\cite{Z96} definuje velikost jednoho vzorku pøímo úmìrnì velikosti foto-receptorù v~oku. To zdùvodòuje pøedev¹ím procesy, které vedou k~vyhodnocení barvy jako vjemu v~lidském mozku. Pøesnìji, \uv{výpoèet} barvy je zalo¾en na intenzitì a~energii svìtla, které dopadá na sítnici v~oku. Podle místa dopadu na sítnici je tato informace pøedána do mozku, kde je dále vyhodnocena.
+
+Proto je navr¾en upravený \emph{vykreslovací øetìzec}, který více odrá¾í principy lidského oka a~mozku odehrávající se pøi rozpoznávání barev. V~\cite{Z96} je vykreslovací øetìzec navr¾en následovnì:
+
+\begin{description}
+
+	\item[Renderer:] Pro úèely \emph{bezsnímkového renderování} je navr¾en jako \emph{renderer} klasický \emph{raytracer}, který se doká¾e vypoøádat anti-aliasingem, umo¾òuje poèítat osvìtlení a~stíny (tvrdé i~mìkké), difusní a~spekulární odlesky a~odrazy a~je mo¾né pøizpùsobit velikost vzorku velikosti foto-receptoru v~lidském oku.
+	
+	\item[Displej:] Jak ji¾ bylo uvedeno v~\ref{sec:2_motivation} a~v~\ref{sec:2_comparation}, \emph{bezsnímkové} renderování není principiálnì stavìno na dne¹ní zobrazovací zaøízení. Proto je nutné pro displej hledat alternativy zalo¾ené spí¹e na vnímání s~mo¾ností pøizpùsobení velikosti vzorkù. Distribuce vzorku na sítnici v~lidském oku závisí na pozici oka a~smìru, kterým se u¾ivatel dívá, reps. smìru, ze kterého vzorek na sítnici dopadá, a~místì kam dopadá. Proto \emph{Ellen Zaiger} v~\cite{Z98} navrhuje pou¾ití \emph{head mounted} displejù. A~aby byla informace úplná a~nezkreslená, pøiklání se k~pou¾ití dvou nezávislých displejù, ka¾dého pro jedno lidské oko (k~tomuto konceptu jsou nejblí¾e stereo kamery nebo právì \emph{HMD}).
+
+\end{description}
+
+
+\section{Faktory ovlivòující kvalitu výstupu}
+\label{sec:2_factors}
+
+Metoda \emph{bezsnímkového renderování} ve své základní podstatì, tak jak byla navrhnuta v~\cite{BFMZ94}, vede k výskytu \emph{prostorového rozptylu} (z angl. \emph{spatial scatter}), který je zpùsobený asynchronní aktualizací jednotlivých pixelù v rastru. To vede ke zhor¹ení kvality výstupu a mù¾e se projevovat v podobì \uv{¹umu}, nebo» sousední pixely aktualizované v rùzných èasových okam¾icích mohou nést hodnotu, která odpovídá rùzným stavùm scény, tedy rùznému rozlo¾ení primitiv ve scénì. Míra a hlavní faktory pro výskyt prostorového rozptylu byly popsány a formalizovány v~\cite{Z96} a mezi hlavní z nich patøí:
+
+\begin{itemize}
+	\item rychlost pohybu objektù a~kamery ve scénì,
+	\item poèet a~velikost objektù ve scénì a~jejich vzájemná separace,
+	\item slo¾itost animací a~pohybu objektù (poèet pohybujících se objektù, konstantní rychlost versus zrychlení/zpomalení, vzájemné kolize objektù, apod.),
+	\item celková slo¾itost scény,
+	\item vzdálenost objektù od kamery,
+	\item ostrost a~kontrast objektù na svých okrajích,
+	\item osvìtlení.
+\end{itemize}
+
+
+Pro formalizaci prostorového rozptylu bylo v~\cite{Z96} vycházeno pøedev¹ím z teorie zpracování signálù. Díky ní lze popsat ru¹ivé artefakty, které jsou vlastní metodì \emph{bezsnímkového renderování}, a definovat je jako ¹um. Vzorkovací teorém (viz~\cite{S49}) øíká: \uv{\emph{rekonstrukce spojitého signálu z~jeho vzorkù je mo¾ná pouze tehdy, pokud byl vzorkován frekvencí alespoò dvakrát vìt¹í, ne¾ je maximální frekvence rekonstruovaného signálu, jinak dojde k~aliasu.}}. Jeliko¾ prostorový rozptyl obsahuje informace, které frekvence jsou zastoupeny a které ne, je mo¾né získat signál pouze v urèitém rozsahu (viz tzv. \emph{scale space} teorie, \cite{L94}). A jeliko¾ byly popsány funkce pro syntézu ¹umu jako signálu (napø. v~\cite{L89}), je mo¾né tyto poznatky vyu¾ít k popisu signálu, který je v prostorovém rozptylu obsa¾en. Díky tomu lze s prostorovým rozptylem nakládat jako se ¹umem a lépe ho formálnì definovat, vèetnì faktorù, které se podílejí na jeho vzniku.
+
+
+\subsection{Formalizace prostorového rozptylu}
+\label{ssec:2_formalization}
+
+Prostorový rozptyl vzniká asynchronní aktualizací jednotlivých pixelù v rastru a pokud je poèet aktualizovaných pixelù pøíli¹ malý, nebo aktualizace neprobíhají dostateènì rychle, bude se rozptyl ve výstupu vyskytovat v podobì artefaktù. V~\cite{Z96} byla snaha vznik rozptylu a~faktory podílející se na jeho vzniku formálnì popsat. Tato podkapitola shrnuje diskutované závìry.
+
+Pro jednoduchost se v~dal¹ím textu pøedpokládá, ¾e velikost jednoho vzorku je rovna velikosti pixelu a~výbìr vzorkù je realizován v~náhodném poøadí podle~\cite{BFMZ94}.
+
+
+V~\cite{Z96} je rozptyl definován pomocí \emph{rychlosti}, \emph{hustoty}, \emph{plochy} a~\emph{gradientu}. V¹echny tyto atributy pøispívají k velikosti a~mno¾ství vzniklého rozptylu. \emph{Rychlost} se dále skládá ze \emph{smìru}, kterým se rozptyl pohybuje a~\emph{rozsahu} tohoto pohybu. \emph{Rychlost} je definována pro ka¾dý pixel v rastru, je tedy dvourozmìrná. Míra rozptylu $\sigma$ pøestavuje ¹íøku jádra konvoluèního filtru, který je schopen rozptyl rozmazáním pùvodního obrázku odstranit:
+
+
+\begin{equation}
+	I'(x, y) = G_{\sigma} \otimes I(x, y) \mathrm{,}
+	\label{eq:2_I_scatter}
+\end{equation}
+
+
+\noindent kde nový obrázek $I'$ neobsahuje ¾ádný ¹um do velikosti $\sigma$. Míru ¹umu lze pak získat jako maximum ze v¹ech rozsahù pohybu v~ka¾dém pixelu:
+
+
+\begin{equation}
+	\sigma = \max (\sigma_{point_i}).
+	\label{eq:2_max_kernel}
+\end{equation}
+
+
+\emph{Hustota} rozptylu je definována jako poèet vstupù vzorkovaných za jednotku èasu. Hodnota ¹umu se rovná jedné právì tehdy, kdy¾ je poèet vstupù roven poètu pixelù, které lze aktualizovat za jednu vteøinu. To pak odpovídá klasickému zpùsobu vyu¾ívajícího dvou bufferù. V tom pøípadì je vzorkovací frekvence rovna celkovému poètu pixelù v rastru a prostorový rozptyl vùbec nevzniká. V podstatì se jedná o snahu o diskretizaci rozptylu na jednotlivé úrovnì (od jemnìj¹ích k hrub¹ím) a pokud jsou vstupy vzorkovány nepøetr¾itì, hustota rozptylu se pøibli¾uje k jedné.
+
+\emph{Plocha}, kterou rozptyl pokrývá, zahrnuje v¹echny pixely obsahující alespoò jeden objekt. Okraje objektù tvoøí \emph{obrys rozptylu} (z~angl. \emph{scatter contour}). Ten ohranièuje nejmen¹í mo¾nou oblast rozptylu pro jeden konkrétní objekt. V~ka¾dém okam¾iku pak \emph{plocha} pokrývá takové mno¾ství pixelù, na kterých je po projekci zobrazen nìjaký objekt. Obecnì v¹ak nelze øíci, ¾e by celková plocha pokrytá rozptylem byla rovna souètu v¹ech svých èástí. Pokud $S_{total}$ znaèí celkovou plochu a~$S_{obj_i}$ plochu, kterou pokrývá $i$-tý objekt a~$n$ je poèet aktuálnì viditelných objektù, je nutné pøedpokládat tuto nerovnost:
+
+
+\begin{equation}
+	S_{total} \neq \sum_{i = 1}^n S_{obj_i}
+	\label{eq:2_contour_sum}
+\end{equation}
+
+
+Posledním atributem je \emph{gradient}. Ten se zpravidla pou¾ívá pro získání lokální nebo globální informace o~zmìnì frekvence. Hodnota gradientu bývá vysoká v~okolí hran a~okrajù objektù, kde¾to k~jejich støedùm naopak klesá. V~souvislosti s prostorovým rozptylem je gradient definován pomocí \emph{scale-space} aparátu (viz~\cite{L94}). Lze ho definovat právì pro jeden pixel, stejnì tak pro jakýkoliv rozsah $\sigma$, reprezentující nejbli¾¹í okolí pixelu do vzdálenosti $\sigma$. Tuto vzdálenost lze pak pou¾ít jako velikost jádra konvoluèního filtru pro rozmazání výstupu. V~\cite{Z96} je \emph{gradient} definován jako:
+
+
+\begin{equation}
+	\nabla F(x, y) = {\binom{F_x}{F_y}},
+	\label{eq:2_gradient}
+\end{equation}
+
+
+\noindent kde $F$ je funkce popisující povrch objektu a~$F_x$, resp. $F_y$, znaèí smìrové derivace v~$x$-ové, resp. $y$-ové, ose.
+
+
+\subsection{Pohyb objektù a~kamery ve scénì}
+\label{ssec:2_scatter_example}
+
+Ve snaze o formální definici rozptylu lze vý¹e uvedené aplikovat na konkrétním pøípadì. Z úvodu této kapitoly byl zvolen problém \emph{rychlosti pohybu objektù a~kamery ve scénì}. Pro ostatní problémy lze postupovat obdobnì nebo lze vycházet z~\cite{Z96}.
+
+Rychlost pohybu objektù a~kamery ve scénì je mo¾né podrobnì analyzovat, jeliko¾ tyto jevy lze díky transformacím pøesnì matematicky popsat. A~dokonce je lze slouèit do jediného problému. To je mo¾né, nebo» pøi pohybu kamery scénou dochází k~transformaci pozice projekèní roviny a~vùèi ní, resp. na ní, se transformují projektované, by» statické, objekty. Ty budou mít po projekci jiné pozice na projekèní rovinì ne¾ v~pøedchozím okam¾iku. Ve výsledku je tedy jedno, zda se pohybuje kamera vùèi objektùm, nebo objekty vùèi projekèní rovinì. Výsledek bude prakticky toto¾ný.
+
+Jak ji¾ bylo øeèeno, ka¾dý pohyb kamery zpùsobí zmìnu polohy projekèní roviny a~po projekci dojde k~posunu v¹ech objektù na projekèní rovinì. \emph{Rychlost} rozptylu je pak pøímo úmìrná lineární a~úhlové rychlosti, kterou se posouvá projekèní rovina pøi pohybu kamery. Rozsah rozptylu, tak jak byl definován v~kapitole~\ref{ssec:2_formalization}, poté odpovídá vzdálenosti, kterou urazil bod projektovaný na projekèní rovinu od své poslední aktualizace. Z toho vyplývá skuteènost, ¾e smìr rozptylu je dvourozmìrný jednotkový vektor pohybu. Nech» $T = (T_x, T_y, T_z)$ znaèí lineární rychlost a $R_{\theta}$ rychlost úhlovou okolo obecné osy $A = (A_x, A_y, A_z)$. Pak $R = (R_x, R_y, R_z)$ je dekompozicí rotace okolo osy $A$ úhlovou rychlostí $R_{\theta}$. Bod $P$ na projekèní rovinì bude posunut o~$\Delta P$ následovnì:
+
+
+\begin{eqnarray}
+	\Delta P_x &=& R_x P_y - R_y P_z - T_x \\
+	\Delta P_y &=& R_x P_z - R_x P_x - T_y \\
+	\Delta P_z &=& R_y P_x - R_x P_y - T_z
+	\label{eq:2_example_point_P}
+\end{eqnarray}
+
+
+Ve dvourozmìrném prostoru (na projekèním plátnì, kde $\mathcal{R}^3 \rightarrow \mathcal{R}^2$, tedy $(x, y, z) \rightarrow (u, v)$) lze z~komponent $u$ a~$v$ bodu $P$  vypoèítat novou pozici bodu $P'$ se slo¾kami $u'$ a~$v'$ v pøí¹tím èasovém okam¾iku po jeho posunu. Pak vektor $V = (u - u', v - v')$ udává rychlost rozptylu a~délka vektoru $\vert V\vert$ udává jeho rozsah:
+
+
+\begin{equation}
+	Vel_{\sigma} = \vert V\vert = \sqrt{(u - u')^2 + (v - v')^2}
+	\label{eq:2_V_length}
+\end{equation}
+
+
+\noindent Smìr rozptylu je jednotkový (normalizovaný) vektor $V$:
+
+
+\begin{equation}
+	Vel_{dir} = \dfrac{V}{\vert V\vert} = \dfrac{(u - u', v - v')}{\sqrt{(u - u')^2 + (v - v')^2}}
+	\label{eq:2_V_direction}
+\end{equation}
+
+
+Z~rovnic~\eqref{eq:2_V_length} a~\eqref{eq:2_V_direction} byla odvozena základní velièina \emph{rychlost} (z~angl. \emph{Velocity}) pro rozptyl vznikající v~obraze. Pro analýzu pohybu objektù ve scénì je postup toto¾ný (viz vý¹e). V~\cite{Z96} jsou popsány i~dal¹í faktory, které se podílejí na vzniku prostorového rozptylu a~tedy i~kvalitì výstupu --- jejich výèet je v~seznamu na zaèátku kapitoly~\ref{sec:2_factors} --- av¹ak pro úèely této práce je tento pøíklad dostaèující.
+
+
+\section{Raytracer}
+\label{sec:2_raytracer}
+
+Pro výpoèet nové hodnoty -- barvy -- právì aktualizovaného pixelu je vyu¾ito metody sledování paprsku pomocí \emph{raytraceru}. Tato metoda je implementaènì jednoduchá a pro aktualizaci pixelù napøíè rastrem se pøímo nabízí. Jeliko¾ v¹ak není metoda \emph{bezsnímkového renderování} metodou pro fotorealistické zobrazování, ale pro zobrazování poèítaèové grafiky v reálném èase, je nutné, aby pou¾itý \emph{raytracer} byl pøedev¹ím rychlý. S pøihlédnutím k algoritmu~\ref{alg:2_fr_basic} je právì funkce \texttt{spoèítejBarvuNa()} klíèová v rámci celkové odezvy aplikace. Z tìchto dùvodù není prioritou pou¾ití slo¾itých \emph{raytracerù} a pokroèilých metod (mìkké stíny, stochastické odrazy paprskù, apod.), lze si vystaèit pouze se základními funkcemi, které pøesto nabízejí kvalitní výstup. Jedná se pøedev¹ím o difuzi, odlesky, odrazy a lomy a tvrdé stíny.
+
+
+\subsection{Sledování paprsku a výpoèet barvy}
+\label{ssec:2_tracing}
+
+Výpoèet nové barvy pixelu na konkrétní pozici v rastru je zalo¾en na vyslání primárního paprsku skrze projekèní rovinu a jeho sledování ve scénì. Pokud je nalezen nejbli¾¹í prùseèík mezi paprskem a primitivem ve scénì je výsledná hodnota pixelu slo¾ena ze tøí pomocných barev. Pro výpoèet základní barvy pixelu v bodì prùseèíku s primitivem ve scénì lze vyu¾ít tzv. \emph{Phongùv osvìtlovací model}:
+
+
+\begin{equation}
+	I_p = k_a + 
+		\sum_{m \in L} \left( 
+			k_d \left( 
+				\vec{L}_m \cdot \vec{N} 
+			\right) 
+			+ k_s \left(
+				\vec{R}_m \cdot \vec{V}
+			\right)^{\alpha}
+		\right) \mathrm{,}
+	\label{eq:2_phong}
+\end{equation}
+
+
+\noindent kde $k_a$ je \emph{ambientní} slo¾ka, $k_d$ je \emph{difusní} slo¾ka a $k_s$ slo¾ka \emph{spekulární}. $L$ pøedstavuje seznam v¹ech nezastínìných svìtel ve scénì a $\vec{L}_m$ je vektor k $m$-tému svìtlu. $\vec{N}$ je normála v bodì dopadu paprsku a $\alpha$ urèuje ostrost odleskù. $\vec{V}$ je pohledový vektor smìøující do kamery a $\vec{R}_m$ je vektor odra¾eného paprsku:
+
+
+\begin{equation}
+	\vec{R}_m = 2(\vec{L}_m \cdot \vec{N})\vec{N} - \vec{L}_m \mathrm{.}
+	\label{eq:2_rm}
+\end{equation}
+
+
+Rovnice~\eqref{eq:2_phong} poèítá základní barvu pixelu vèetnì její \emph{difusní}, \emph{spekulární} a \emph{ambientní} slo¾ky podle aktuálního osvìtlení, tedy podle pozice prùseèíku v prostoru a v¹ech aktuálnì nezastínìných svìtel ve scénì. Pokud to vlastnosti materiálu objektu umo¾òují (materiály jako lesklý kov nebo zrcadlo), je spoèítána barva odleskù v místì dopadu paprsku. To je realizováno pomocí rekurze vytvoøením nového, \emph{sekundárního paprsku} podle rovnice:
+
+
+\begin{equation}
+	\vec{R}_{refl} = \vec{D} - 2(\vec{D} \cdot \vec{N})\vec{N} \mathrm{,}
+	\label{eq:2_reflection}
+\end{equation}
+
+
+\noindent kde $\vec{D}$ je smìr pùvodního paprsku a $\vec{N}$ normála v bodì dopadu. Sekundární paprsek je rekurzivnì odra¾en do scény z místa dopadu pùvodního paprsku a proces se opakuje. Pokud je objekt v místì dopadu prùhledný (materiál typu sklo nebo voda) je vytvoøen opìt nový, sekundární paprsek, který je zalomen podle rovnice~\eqref{eq:2_refraction}, kde $\vec{N}$ je normála v bodì dopadu, $\vec{D}$ je smìr pùvodního paprsku a $n_1$ a $n_2$ indexy lomu v prvním a druhém prostøedí. Nový paprsek je opìt rekurzivnì poslán do scény nebo dovnitø objektu a hledání pomocné barvy se opakuje.
+
+
+\begin{equation}
+	\vec{R}_{refr} = -\cos\theta_1 \vec{N} + \dfrac{n_2}{n_1}(\cos\theta_2 \vec{N} + \vec{D}) \mathrm{.}
+	\label{eq:2_refraction}
+\end{equation}
+
+
+Rovnice~\eqref{eq:2_reflection} a~\eqref{eq:2_refraction} vytváøejí nový paprsek a vyu¾ívají rekurzivního volání, které je provádìno do urèité, explicitnì nastavené hloubky. Výsledkem je v¾dy barva, která je pøiètena k hlavní barvì pixelu z rovnice~\eqref{eq:2_phong}. Tím je získána kompletní nová barva pro aktualizovaný pixel.
+
+
+\subsection{Dìlení prostoru scény -- \emph{kd}-strom}
+\label{ssec:2_kd_tree}
+
+Spolu s metodou sledování paprsku je èasto nutné øe¹it i dìlení scény pro rychlé nalezení prùseèíku s nejbli¾¹ím primitivem. Jednou z mo¾ností, které jsou pro tento úèel urèeny, je vyu¾ití tzv. \emph{kd}-stromu, který byl navr¾en a definován napø.v~\cite{HB02} nebo v~\cite{WH06}.
+
+Konstrukce \emph{kd}-stromu je realizována dìlením prostoru podle jedné dìlící roviny na dva podprostory. Dìlení je provádìno rekurzivnì do urèité hloubky, kde ka¾dý podprostor reprezentovaný osovì zarovnaným boxem (z angl. \emph{axis aligned bounding box}) obsahuje buï dal¹í dva podprostory nebo primitiva, která se v daném boxu fyzicky nacházejí. Pro nalezení ideální dìlící roviny a pozice na ní lze vycházet z heuristiky \emph{SAH} (z angl. \emph{surface area heuristic} definované napø. v~\cite{W04}. Ta hledá dìlící pozici na jedné z rovin podle ceny ka¾dé mo¾né dìlící pozice. Dìlící pozice jsou vybírány podle krajù primitiv a pozice s nejlep¹í cenou je pak zvolena pro rozdìlení prostoru podle aktuální roviny na dva podprostory. Cena dìlící pozice je poèítána podle rovnice:
+
+\begin{equation}
+	cost_{split}(V_L, N_L, V_R, N_R) = C_{trav} + P(B_L \vert V) \cdot N_L + P(B_R \vert V) \cdot N_R\mathrm{,}
+	\label{eq:2_sah}
+\end{equation}
+
+\noindent kde $N_L$, resp. $N_R$, je poèet primitiv le¾ících v levém prostoru (boxu) $B_L$, resp. pravém prostoru $B_R$, a $C_{trav}$ je vhodnì zvolenou konstantou. Pøi dìlení prostoru $B$ na dva pod-prostory $B_L$ a $B_R$ je nejprve nutné urèit pravdìpodobnost $P(B_n \vert V)$ udávající, zda paprsek pøi prùchodu stromem nav¹tíví daný prostor. Pravdìpodobnost pak lze poèítat podle rovnice:
+
+\begin{equation}
+	P(B_L \vert B) = \dfrac{SA(B_L)}{SA(B)} \quad \mathrm{a} \quad P(B_R \vert B) = \dfrac{SA(B_R)}{SA(B)} \mathrm{,}
+	\label{eq:2_sah_prob}
+\end{equation}
+
+\noindent kde $SA(B) = 2(B_xB_y + B_xB_z + B_yB_z)$ urèuje plochu prostoru $B$ s rozmìry $B_x$, $B_y$ a~$B_z$ v jednotlivých osách. Pro rozdìlení ka¾dého uzlu stromu je proces volán rekurzivnì na oba jeho pod-uzly. Koncovou hloubku rekurze, resp. vý¹ku výsledného \emph{kd}-stromu, je mo¾né specifikovat explicitnì nebo ponechat nastavení automatické, které je poèítáno podle rovnice:
+
+\begin{equation}
+	depth = \log_2 prim_{count} \mathrm{,}
+	\label{eq:2_kd_depth}
+\end{equation}
+
+\noindent kde $prim_{count}$ udává celkový poèet primitiv ve scénì. S vyu¾itím logaritmu o základu $2$ bude hloubka stromu i pro mnoho primitiv relativnì malá\footnote{Pro $1\,048\,576$ primitiv ve scénì bude hloubka \emph{kd}-stromu $20$.} a výsledný strom bude obsahovat pøimìøené mno¾ství primitiv v ka¾dém listu. To se kladnì projevuje na rychlosti hledání prùseèíkù s primitivy le¾ícími v jednotlivých listech \emph{kd}-stromu.
+
+
+\section{Vhodný výbìr vzorkù pro aktualizaci}
+\label{sec:2_monte_carlo}
+
+\emph{Bezsnímkové renderování}, tak jak bylo navr¾eno v~\cite{BFMZ94}, se sna¾í sní¾it odezvu výstupu v~grafických aplikacích výbìrem a~okam¾itou aktualizací pixelù. Získání pixelu je provádìno èistì náhodným výbìrem dvou èísel pøedstavujících pozici v~$x$-ové a~$y$-ové ose grafického rastru, napø. pomocí nìjakého generátoru pseudonáhodných èísel. Tento pøístup je velmi rychlý a~intuitivní. Staèí vybírat náhodné pozice vzorkù na projekèní rovinì a~doufat, ¾e pokrytí obrazovky bude jak v~èase tak v~prostoru co nejlep¹í. Aby v¹ak \emph{bezsnímkové renderování} generovalo pøijatelný výstup, je ¾ádoucí v¹echny pixely napøíè projekèní rovinou vybírat a)~náhodnì pøes celou obrazovku, b)~s~pøimìøenì stejnou èetností ve v¹ech jejích oblastech. To znamená, ¾e by nemìlo docházet k~tomu, aby nìkteré pixely byly aktualizovány èastìji ne¾ jiné, nebo naopak, aby se na nìkteré pixely úplnì zapomnìlo a~neaktualizovaly se ani jednou. Jak bylo ukázáno v~\cite{S06}, náhodný výbìr vzorkù není úplnì ideálním øe¹ením a~výstup získaný tímto pøístupem obsahuje daleko více artefaktù.
+
+Tato kapitola navrhuje alternativy pro výbìr vhodných vzorkù k~jejich aktualizaci aplikováním jiných technik, ne¾ jaké byly pùvodnì v~\cite{BFMZ94} navr¾eny. Konkrétnì se jedná o~tzv. \emph{jittered} vzorkování (viz podkapitola~\ref{ssec:2_jittered}), problém $n$ vì¾í (viz podkapitola~\ref{ssec:2_n_rooks}) a~\emph{Poissonovy disky} (viz podkapitola~\ref{ssec:2_poisson_disc}). Na závìr kapitoly jsou pøedstaveny posloupnosti pseudonáhodných èísel a~konkrétnì \emph{Haltonova posloupnost} (viz podkapitola~\ref{ssec:2_halton}), která byla vybrána jako ideální øe¹ení v~\cite{S06}.
+
+
+\subsection{Problém $n$ vì¾í}
+\label{ssec:2_n_rooks}
+
+Jedná se o~klasický problém, který je analogií k~¹achové partii. Pøesnìji øeèeno, popisuje, jak rozlo¾it $n$ vì¾í na ¹achovnici o~velikosti $n \times n$, tak, aby se vzájemnì neohro¾ovaly. Ka¾dé políèko ¹achovnice pøedstavuje jednu buòku. Implementace tohoto problému je v~celku snadná: nejprve se vì¾e umístí na jednu z~diagonál a následnì se napø. v~$x$-ové ose provede jejich promíchání napø. výmìnou dvou vì¾í na rùzných pozicích. Tuto èinnost je nutné aplikovat nìkolikrát po sobì. Výhoda tohoto postupu je ta, ¾e vì¾e pøedstavující jednotlivé vzorky jsou od sebe dostateènì daleko, tak, aby jejich celkový pøínos byl rozprostøen pøes celý zkoumaný region, v~tomto pøípadì celý obraz. Jediný pøípad, který mù¾e být problematický je ten, kdy by vzorky zùstaly na svém pùvodním místì na diagonále.
+
+Problém $n$ vì¾í je v rámci \emph{bezsnímkového renderování} mo¾né implementovat napø. tak, ¾e je nejprve urèeno umístìní v¹ech vì¾í v jednotlivých buòkách a poté jsou aktualizovány v¹echny pixely, ve kterých se vì¾e vyskytují. Tím je zaji¹tìna aktualizace $n$ pøí¹tích vzorkù. Problém je, ¾e jedna buòka mù¾e pokrývat více pixelù a samo umístìní vì¾e v buòce pouze øíká, ¾e se tam bude pøí¹tí vzorek vybírat. Pro jeho správnou pozici je proto nutné pøièíst náhodný \emph{offset} k levému hornímu rohu buòky a a¾ tato výsledná hodnota bude urèovat skuteènou pozici vzorku v rastru. Po aktualizaci $n$ vzorkù je nutné celý proces opakovat, vèetnì generování nového rozlo¾ení vì¾í v buòkách.
+
+
+\subsection{\emph{Jittered} vzorkování}
+\label{ssec:2_jittered}
+
+Oblíbenìj¹í a~té¾ èastìji pou¾ívanìj¹í metoda napø. pøi øe¹ení \emph{supersamplingu} u~\emph{raytraceru} je tzv. \emph{jittered} vzorkování\footnote{Nìkdy oznaèované té¾ jako \emph{stratified} vzorkování.}. Obraz je rozdìlen opìt na $n \times n$ bunìk\footnote{Obecnì jich mù¾e být $m \times n$.}, kde v~ka¾dé buòce je potom náhodnì zvolena pozice vzorku. Ka¾dý vzorek pak spadá právì do jedné buòky a~vùèi jejímu poèátku je posunut o~tento náhodný \emph{offset}. Tato metoda mù¾e být tedy implementaènì jednodu¹í a~èasovì rychlej¹í ne¾ metoda $n$ vì¾í.
+
+Pro potøeby \emph{bezsnímkového renderování} je mo¾né tuto metodu implementovat podobnì jako problém $n$ vì¾í. V jednom kroku lze postupnì generovat $n^2$ náhodných hodnot a ty pøièítat k poèátkùm pøíslu¹ných bunìk. Vzniklá pozice pak udává skuteènou pozici vzorku v rastru. Tímto postupem bude zaji¹tìno pokrytí obrazu pro pøí¹tích $n^2$ vzorkù. Pøesto, ¾e je tato metoda velmi oblíbená, její vyu¾ití v \emph{bezsnímkovém rendereru} není úplnì ideální a vybírané vzorky mají tendenci ke shlukování. Lze øíci, ¾e ze v¹ech metod pøedstavených v této kapitole je výstup této metody nejhor¹í (viz obrázek \ref{fig:2_monte_carlo}) a je srovnatelný s náhodným výbìrem vzorkù (to zále¾í na kvalitì pou¾itého generátoru pseudonáhodných èísel).
+
+
+\subsection{Poissonovy disky}
+\label{ssec:2_poisson_disc}
+
+Metoda \emph{Poissonových diskù} je opìt roz¹íøená napøíè implementacemi rùzných \emph{raytracerù} a~vzorky generuje v¾dy náhodnì, av¹ak tak, aby neporu¹ovaly jistou podmínku. Tato podmínka øíká, ¾e ka¾dý vzorek mù¾e od ostatních le¾et v~urèité minimální vzdálenosti $r_t$, tedy ka¾dý vzorek má okolo sebe pomyslnou kru¾nici o~polomìru $r_t$ a~v~této kru¾nici se nesmí vyskytovat ¾ádný jiný vzorek.
+
+Tato metoda je vcelku vhodná pro zakomponování do \emph{bezsnímkového rendereru}. Pøi implementaci je nutné poèítat s tím, ¾e ¾ádný nový vzorek, splòující danou podmínku ji¾ nebude mo¾né nalézt. Potom lze generovat $n$ vzorkù, které jsou postupnì aktualizovány a pokud je tento poèet dosa¾en, nebo není mo¾né nalézt vyhovující pozici nového vzorku, staré vzorky jsou zapomenuty a výpoèet zaèíná od zaèátku. Její èasová slo¾itost bude závislá pøedev¹ím na $n$ a na aktuálním poètu ji¾ vygenerovaných vzorkù: nalezení nového vzorku náhodným výbìrem jeho pozice a~porovnání, zda nele¾í uvnitø kru¾nice jiného vzorku bude rychlej¹í pro men¹í poèet vzorkù.
+
+
+\subsection{Pseudonáhodné posloupnosti, \emph{Haltonova} posloupnost}
+\label{ssec:2_halton}
+
+Zcela jiný pøístup byl pøedstaven v~\cite{S06}. Ten vychází z~\emph{kvazi-Monte Carlo} metod a~pøedstavuje pseudonáhodné posloupnosti pro generování nových vzorkù. Ty, jak je v~\cite{S06} ukázáno, dávají daleko lep¹í výsledky, tedy lep¹í rozprostøení vzorkù v prostoru a èase. Pøesto ¾e je v~\cite{S06} diskutováno, testováno a~srovnáno hned nìkolik posloupností, pro úèely této práce bude pøedstavena pouze jediná -- \emph{Haltonova} posloupnost, která se ostatnì ukazuje jako nejlep¹í (srovnání viz~\cite{S06}). Aby v¹ak následující text dával smysl, je nutné definovat základní strukturu a~operaci nad ní (viz~\cite{S06} a~\cite{N92}):
+
+
+\begin{definition}
+	\label{eq:2_point_sequence}
+	\textbf{Posloupnost bodù:} posloupnost bodù $P_n$ je mno¾ina $\{x_0, x_1, \ldots, x_{n-1}\}$ bodù $x_i \in \mathcal{I}^s = \langle 0, 1)^s$, kde $s \in \mathbb{N}$, $n \in \mathbb{N}$ a~platí: $$P_{n+1} = P_n \cup x_n\mathrm{.}$$ V¹echny body $x_i$ v~posloupnosti $P_n$ le¾í v~intervalu $\langle0 , 1)^s$, kde $s$ znaèí velikost prostoru. Pro úèely \emph{bezsnímkového renderování} lze uva¾ovat $s = 2$, jeliko¾ se bude v¾dy jednat o~dvourozmìrný rastr a~ka¾dý bod $x_i$ pak bude reprezentovat souøadnice daného vzorku v tomto rastru.
+\end{definition}
+
+	
+\begin{definition}	
+	\label{eq:2_radical_inverse_fn}
+	\textbf{Radikálnì inverzní funkce (radical-inverse function):} nech» je $(a_j)_{j=0}^{\infty}$ reprezentací celého èísla $i \in \mathbb{N}_0$ o~základu $b \geq 2$. Pak funkce $\Phi_b$ se nazývá \emph{radikálnì inverzní funkce} a~je definována jako: $$\Phi_b : \mathbb{N}_0 \rightarrow \langle 0, 1)\mathrm{,}$$ $$i = \sum_{j=0}^{\infty} a_j(i)b^j \mapsto \sum_{j=0}^{\infty} a_j(i)b^{-j-1}\mathrm{.}$$ Funkce $\Phi_b$ funguje tak, ¾e otáèí celoèíselné hodnoty indexu $i$ okolo desetinné èárky v~èíselné soustavì o~základu $b$. Napø. $(11)_{10} = (1011{,}0)_{2} \rightarrow (0{,}1101)_{2} = (0{,}8125)_{10}$.
+\end{definition}
+
+
+\emph{Haltonovu} posloupnost, která byla pøedstavena v~\cite{H64}, je pak mo¾né definovat takto:
+
+
+\begin{equation}
+	x_{i}^{Halton} = \left( \Phi_{b_1} \left( i \right), \ldots, \Phi_{b_s} \left( i \right) \right) \mathrm{,}
+	\label{eq:2_halton}
+\end{equation}
+
+
+\noindent kde $b_1, \ldots, b_s$ jsou èísla, která je vhodné zvolit tak, aby tvoøila posloupnost prvních $s$ prvoèísel. Pro pøípad \emph{bezsnímkového renderování}, kde $s = 2$ je mo¾né upravit rovnici~\eqref{eq:2_halton} do tvaru: 
+
+\begin{equation}
+	x_{i}^{Halton} = \left( \Phi_2 \left( i \right), \Phi_3 \left( i \right) \right)\mathrm{,}
+	\label{eq:2_halton_final}
+\end{equation}
+
+\noindent kde $\Phi_2(i)$ reprezentuje $x$-ovou souøadnici a~$\Phi_3(i)$ $y$-ovou souøadnici.
+
+Jak ji¾ bylo øeèeno, v~\cite{S06} je pøedstaveno nìkolik dal¹ích posloupností, av¹ak právì \emph{Haltonova} dosahuje nejlep¹ích výsledkù (viz obrázek~\ref{fig:2_monte_carlo}) a~v~porovnání s~ostatními vítìzí. Navíc, její implementace je vcelku jednoduchá a~je nastínìna pseudokódem~\ref{alg:2_halton}.
+
+
+\begin{algorithm}[ht]
+\textbf{function} \textsc{haltonPoint}(\texttt{index}, \texttt{base}) \\ \Begin{
+	\texttt{result} $\leftarrow$ 0\;
+	\texttt{factor} $\leftarrow$ 1 / \texttt{base}\;
+	\texttt{i} $\leftarrow$ \texttt{index}\;
+	\While{\texttt{i} $>$ 0}{
+		\texttt{result} $\leftarrow$ \texttt{result} + \texttt{factor} * (\texttt{i} \% \texttt{base})\;
+		\texttt{i} $\leftarrow$ \texttt{floor}(\texttt{i} / \texttt{base})\;
+		\texttt{factor} $\leftarrow$ \texttt{factor} / \texttt{base}\;
+	}
+	\Return \texttt{result}\;
+}
+\caption{Pseudokód funkce pro výpoèet jednoho prvku \emph{Haltonovy} posloupnosti. Funkci je nutné volat dvakrát pro stejný \texttt{index} a~jako promìnnou \texttt{base} zvolit nejprve èíslo $2$ (pro $x$-ovou slo¾ku) a~následnì $3$ (pro $y$-ovou slo¾ku).}
+\label{alg:2_halton}
+\end{algorithm}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[Náhodnì vybrané vzorky]{\includegraphics[width=5.85cm]{./fig/sampling/random_256.pdf} \label{fig:2_mc-random}}
+	\subfloat[\emph{Jittered} vzorkování]{\includegraphics[width=5.85cm]{./fig/sampling/jitter_256.pdf} \label{fig:2_mc-jittered}} \\
+	\subfloat[\emph{Poissonovy disky}, $s = 124$]{\includegraphics[width=5.85cm]{./fig/sampling/poisson_256.pdf} \label{fig:2_mc-poisson}}
+	\subfloat[Metoda $n$ vì¾í]{\includegraphics[width=5.85cm]{./fig/sampling/rooks_256.pdf} \label{fig:2_mc-n_rooks}} \\
+	\subfloat[\emph{Haltonova} posloupnost]{\includegraphics[width=5.85cm]{./fig/sampling/halton_256.pdf} \label{fig:2_mc-halton}}
+	\subfloat[\emph{Halton} s~indexy bodù $p_i$, $s = 32$]{\includegraphics[width=5.85cm]{./fig/sampling/halton_32.pdf} \label{fig:2_mc-halton_indices}}
+	\caption{Obrázek ilustruje èinnost vý¹e popsaných metod pøi výbìru $s$ vzorkù ($s = 256$, pokud není uvedeno jinak). Zatímco náhodný výbìr, problém $n$ vì¾í a~\emph{jittered} vzorkování (obrázky~\ref{fig:2_mc-random},~\ref{fig:2_mc-n_rooks} a~\ref{fig:2_mc-jittered}) mají sklon ke shlukování vzorkù, \emph{Poissonovy disky} (obrázek~\ref{fig:2_mc-poisson}) a~pøedev¹ím \emph{Haltonova} posloupnost (obrázek~\ref{fig:2_mc-halton}) doká¾í vzorky rozprostøít lépe pøes celé plátno. Poslední obrázek ilustruje výbìr prvních $32$ vzorkù \emph{Haltonovou} posloupností vèetnì jejich poøadí v jakém byly vybírány.}
+	\label{fig:2_monte_carlo}
+\end{figure}

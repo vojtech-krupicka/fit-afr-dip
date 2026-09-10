@@ -1,0 +1,471 @@
+%----------------------------------------------------------------------------
+% soubor: 4_app.tex
+% autor: Vojtìch Krupièka, xkrupi06
+% datum: 06.01.2012
+%----------------------------------------------------------------------------
+\chapter{Implementace}
+\label{chap:4_app}
+
+Pro úèely této práce byla soubì¾nì vyvíjena aplikace, jejím¾ cílem bylo vhodným zpùsobem demonstrovat èinnost \emph{bezsnímkového renderování} v praxi na nìkolika jednoduchých scénách. Kromì základní \emph{bezsnímkové metody} byl kladen dùraz i na demonstraci \emph{adaptivní varianty}, a to jak øízeného vzorkování, tak následné rekonstrukce obrazu. Tato kapitola popisuje implementaci demonstraèní aplikace a jejích jednotlivých èástí.
+
+Demonstraèní aplikace byla vyvíjena v programovacím jazyce \texttt{C++} s dùrazem na správné vyu¾ití zásad OPP a výhod z nich plynoucích. Pro zobrazování výstupu \emph{bezsnímkového rendereru} byl vyu¾ita knihovna \emph{OpenGL}\footnote{Viz \url{http://www.opengl.org/}.}. Vyu¾ití dal¹ích knihoven a nástrojù bylo zva¾ováno, ale nakonec nepou¾ito.
+
+
+\section{Vytvoøení a správa scény}
+\label{sec:4_scene}
+
+Pøed vlastní implementací \emph{bezsnímkového} rendereru bylo nutné zamìøit se na naètení a sestavení scény z jejího popisu. Jako vhodný formát pro popis scény byl vybrán formát \texttt{AFF}, jeho¾ hlavní doménou je mo¾nost definice animací.
+
+
+\subsection{Formát \texttt{AFF}}
+\label{ssec:4_aff}
+
+Pro výbìr vhodného formátu pro popis scény bylo vzneseno nìkolik hlavních po¾adavkù, které musí daný formát splòovat. Kromì zobrazení základních primitiv, jako jsou trojúhelník, válec a koule, svìtel, materiálù a pøípadnì textur, byl hlavní dùraz kladen na mo¾nost definice animací ve scénì a to jak jednotlivých objektù tak i samotné kamery. Kromì toho byl hledán formát, který je co nejjednodu¹¹í, textový a není zatí¾en komerèními licencemi.
+
+V¹echna kritéria splòuje právì formát \texttt{AFF}, který byl nakonec zvolen a zakomponován. Formát \texttt{AFF}\footnote{Z angl. \emph{animated file format}, definice a popis formátu na \url{http://www.ce.chalmers.se/BART/aff.html}.} vzniká v roce $2\,000$ roz¹íøením svého pøedchùdce, formátu \texttt{NFF} (z angl. \emph{normal file format}), pro úèely tzv. \emph{BART} (z~angl. \emph{A~Benchmark of Animated Ray Tracing}, viz~\cite{BART00}). Formát je textový a jeho struktura je velmi jednoduchá. Skládá se z tzv. entit, které umo¾òují definovat:
+
+\begin{itemize}
+	\item kameru (pozice, smìr pohledu, rozli¹ení obrazu v pixelech, apod.), 
+	\item svìtla (pozice, barva, mo¾nost animací),
+	\item materiály (difusní, ambientní a spekulární barva, index lomu, prùhlednost, odlesky),
+	\item základní primitiva typu trojúhelník, válec a jehlan, koule a polygon.
+\end{itemize}
+
+\noindent Navíc je mo¾né do sebe jednotlivé \texttt{AFF} soubory vnoøovat pomocí tzv. \emph{include} klauzule, èím¾ lze docílit opakování urèité geometrie ve scénì, nebo lze definovat rùzné materiály a ty pak nastavovat jednotlivým objektùm. Nejdùle¾itìj¹í entity ve formátu \texttt{AFF} jsou v¹ak transformace. Ty jsou pøítomny dvì: statická a dynamická. \emph{Statická} transformace umo¾òuje aplikovat transformaèní matici na v¹echny objekty (posun, rotace a zmìna mìøítka), které obsahuje. Tato transformace je definována pomocí matice a její vyu¾ití je napø. ve spojení s \emph{include} klauzulí, kde geometrie definovaná ve vkládaném souboru je posunuta na novou pozici ve scénì. 
+
+Druhá transformace je \emph{dynamická} a je specifikována pouze unikátním jménem. Pomocí ní lze oznaèit geometrii, která se bude animovat pøi spu¹tìní scény. Samotný popis animace je pak pøesunut do zvlá¹tní entity, která je s dynamickou transformací svázaná jménem a animace je popsána pomocí transformací v klíèových snímcích v èase. Díky tomu lze dopoèítat transformaèní matici pro konkrétní animaci podle aktuálního èasu bìhu aplikace. Nutno poznamenat, ¾e je mo¾né oba typy transformací do sebe libovolnì vnoøovat a dynamických transformací lze definovat nìkolik se stejným jménem.
+
+
+\subsection{Vlastní implementace a vytvoøení \emph{grafu scény}}
+\label{ssec:4_scene}
+
+Scéna je implementována ve tøídì \texttt{Scene} a ve své podstatì se pouze jedná o chytrou obálku na data. Scéna v sobì zabaluje v¹echny potøebné seznamy (seznam v¹ech primitiv, materiálù, textur, svìtel a animací), nastavení kamery, barvu pozadí a dále implementuje \emph{graf scény}. Scéna potom nabízí \emph{API}\footnote{API (z angl. \emph{Application Programming Interface}) oznaèuje rozhraní pro programování aplikací. Jedná se o~sbírku procedur a~funkcí, které lze vyu¾ít mimo danou tøídu nebo knihovnu.} jak pro její vytvoøení (pomocí tøídy \texttt{AffParser}, který se postará o rozparsování souboru s popisem scény), tak pro poskytování informací svému okolí (geometrie, kamera), nebo jejich úpravu (transformace geometrie pøi animacích).
+
+Pøi jejím vytváøení je konstruován tzv. \emph{graf scény}, kde si ka¾dý uzel grafu (implementovaný tøídou \texttt{SceneNode}) uchovává seznam v¹ech svých potomkù, seznam primitiv a svoji transformaèní matici. Celý graf pak udr¾uje informace o pozicích a transformacích jednotlivých primitiv v ka¾dém uzlu. Jednotlivé uzly grafu pøímo odpovídají transformaèním entitám z definice \texttt{AFF} souboru. 
+
+Zatímco u statického uzlu je transformaèní matice známa ji¾ pøi konstrukci scény (pøímo z \texttt{AFF} souboru) a je mo¾né ji uzlu nastavit ihned, dynamický uzel obsahuje pouze svoje jméno a jeho transformaèní matice je inicializována na matici identity\footnote{Matice identity je jednotkový prvek pro násobení matic.}. Konkrétní transformaèní matice je vypoèítána a nastavena a¾ pøi vlastním bìhu animace (viz podkapitola~\ref{ssec:4_animations}). Aby v¹ak transformace primitiv v konkrétním uzlu probíhaly správnì, dochází k výpoètu finální transformaèní matice pro daný uzel skládáním matic v jednotlivých uzlech a to v¾dy smìrem od listu ke koøenu (graf je implementován jako $n$-ární stom). Touto maticí jsou následnì transformována v¹echna primitiva, která daný uzel obsahuje. Finální matici je nutné poèítat v¾dy znovu pro ka¾dý statický (pøi sestavování scény) i dynamický (pøi ka¾dém snímku animace) uzel grafu.
+
+
+\subsection{Animace a jejich správa}
+\label{ssec:4_animations}
+
+Animace jsou popsány zvlá¹tní entitou v \texttt{AFF} souboru, která obsahuje popis transformací v jednotlivých klíèových snímcích v èase. Pøi sestavování scény jsou vytvoøeny pøíslu¹né instance tøídy \texttt{Animation}, které si v sobì uchovávají transformace v klíèových snímcích a na po¾ádání jsou schopné poskytovat transformaèní matici v konkrétním èasovém okam¾iku. Pro její nalezení je provedena lineární interpolace mezi dvìma nejbli¾¹ími klíèovými snímky (podle èasu snímkù a aktuálního èasu animace) a nová transformaèní matice je pak nastavena danému dynamickému uzlu. Novì získaná transformaèní matice je nejprve postupnì skládána (násobena) se v¹emi maticemi rodièovských uzlù od aktuálního uzlu grafu. Transformace primitiv následuje vzápìtí pomocí výsledné transformaèní matice.
+
+Mo¾ných øe¹ení problému animací bylo více. Napø. nastavit objekt animace pøímo dynamickému uzlu. Jeliko¾ je v¹ak animace scény volitelná, byl zvolen pøístup implementující tzv. \emph{správce animací} (tøída \texttt{AnimationManager}). Ten udr¾uje v¹echny animace ve scénì a na po¾ádání vrací pøíslu¹né transformaèní matice podle jména dané animace a aktuálního èasu. Kromì toho si sám udr¾uje dùle¾ité promìnné pro øízení bìhu animace celé scény (èas zaèátku a konce v¹ech animací, poèet snímkù, aktuální èas animace a aktuální snímek). Dále pak poskytuje \emph{API} pro øízení animace scény (pøechod na následující nebo pøedchozí snímek, pøechod na konkrétní snímek nebo na konkrétní èas animace).
+
+
+\section{Vlastní implementace aplikace}
+\label{sec:4_app}
+
+Implementace demonstraèní aplikace vychází z obrázku~\ref{fig:3_afr_components}, ale ve znaèné míøe ho upravuje. Napø. komponenta rekonstruktoru byla kompletnì zaèlenìna pøímo do vzorkovaèe. Samotná aplikace se skládá ze tøí hlavních komponent: \texttt{Application}, \texttt{GLController} a \texttt{Sampler} a její schéma je znázornìno na obrázku~\ref{fig:4_app_diagram} vèetnì toku dat mezi jednotlivými bloky. Popis jednotlivých èástí následuje v dal¹ím textu této podkapitoly.
+
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=11cm]{./fig/app.pdf}
+	\caption{Blokové schéma demonstraèní aplikace vèetnì toku dat mezi jednotlivými funkèními bloky a poøadím, v jakém jsou kroky vykonávány (v hranatých závorkách, èervenou barvou). Schéma zobrazuje aplikaci pro \emph{adaptivní} variantu \emph{bezsnímkoveho renderování} a pracuje podle algoritmu~\ref{alg:3_afr}.}
+	\label{fig:4_app_diagram}
+\end{figure}
+
+
+\subsection{Komponenty \texttt{Application} a \texttt{GLController}}
+\label{ssec:4_app_ctrl}
+
+Hlavní komponentou celé aplikace je komponenta \texttt{Application}, která je implementována ve stejnojmenné tøídì. Tøída \texttt{Application} øídí aktualizaci jednotlivých pixelù pomocí své \emph{synchronizaèní jednotky}, která implementuje \texttt{while} cyklus z algoritmu~\ref{alg:3_afr} z øádku~\ref{alg:ln3:3_afr}. Rozhodovací podmínka je znázornìna pomocí bloku s \emph{otazníkem}, který podle aktuálního èasu bìhu aplikaèního cyklu a celkového èasu bìhu aplikace posouvá animaci scény na následující klíèový snímek a pokud ubìhl dostateènì dlouhý èas, nebo byl aktualizován po¾adovaný poèet pixelù v daném kroku, vrací øízení zpìt komponentì \texttt{GLController} (znázornìno èervenou barvou). V opaèném pøípadì dochází k aktualizaci nového pixelu v rastru a øízení je pøedáno \emph{vzorkovaèi} (zelená barva).
+
+Implementaci rozhodovací podmínky pro synchronizaci s animací nebo ukonèení aktuálního aplikaèního cyklu bylo mo¾né realizovat nìkolika mo¾nými zpùsoby:
+
+
+\begin{enumerate}
+	\item Lze stanovit konstantní èas $t_s$, který je porovnán s dobou aplikaèního cyklu aplikace $t_r$. Dokud bude platit nerovnost $t_r < t_s$, budou aktualizovány pixely pomocí vzorkovaèe. V okam¾iku, kdy podmínka splnìna nebude, dojde k pøeru¹ení cyklu a k pøedání øízení zpìt komponentì \texttt{GLController}. Tímto zpùsobem je mo¾né nastavit fixní obnovovací frekvenci, napø. $25Hz$.
+	\item Èas $t_s$ mù¾e být rovnì¾ zvolen vhodnì tak, aby odpovídal jednomu kroku animace uvnitø scény. Tím se \emph{frame buffer} na displeji pøekreslí v¾dy, kdy¾ je to nezbytnì nutné, tedy pøi pøechodu na nový snímek animace.
+	\item Dal¹í mo¾ností je nastavit fixní poèet pixelù, které budou v jednom kroku aktualizovány. Doba bìhu celého cyklu pak není øízena skuteèným èasem, ale pouze odezvou ní¾e polo¾ených komponent (\emph{vzorkovaèe} a \emph{raytraceru}). Souèasnì je v¹ak nutné synchronizovat èas animace a správnì pøecházet na následující snímek animace. 
+	\item Posledním mo¾ným zpùsobem je obnovovat výstup na displeji v¾dy po pøijetí u¾ivatelských vstupù. Napø. pohybem my¹i mìnit pohled kamery ve scénì. Tento pøístup je v¹ak velmi komplikovaný pøi spojení s dynamickými objekty a musí být kombinován s ostatními zpùsoby.
+\end{enumerate}
+
+
+Komponenta \texttt{GLController} pøedstavuje vrstvu mezi aplikací a vykreslováním na displeji, které je realizováno pomocí \emph{OpenGL}. \texttt{GLController} implementuje jednotlivé \emph{callback} funkce pro obsluhu událostí spojených s u¾ivatelskými vstupy (my¹, klávesnice, zmìna velikosti okna, apod.) a rovnì¾ øídí vykreslování aktuálního obsahu \emph{frame bufferu}. To se dìje v \emph{callback} funkci \texttt{OnDisplay()}. V této funkci je nejprve pøedáno øízení aplikaci, která se postará o aktualizaci pixelù a synchronizaci s animací scény (viz vý¹e). Jakmile je aktualizován po¾adovaný poèet pixelù, nebo ubìhl potøebný èas, je opìt vráceno øízení zpìt komponentì \texttt{GLController}, která se postará o vykreslení \emph{frame bufferu}. S pøihlédnutím k algoritmu~\ref{alg:3_afr}, komponenta \texttt{GLController} implementuje hlavní nekoneènou smyèku na øádku~\ref{alg:ln2:3_afr}.
+
+Na první pohled by bylo mo¾né obì vý¹e uvedené komponenty spojit do jedné, av¹ak komponenta \texttt{GLController} byla vytvoøena zejména proto, aby bylo mo¾né oddìlit logiku vlastního vykreslování od zbytku aplikace. Samo \emph{OpenGL} je nyní vyu¾ito pouze v této komponentì a zbytek aplikace je na nìm nezávislý. Díky tomu je mo¾né implementovat vlastní vykreslovací jednotku, která mù¾e být realizována zcela odli¹nì. Lze napø. výstup vykreslovat pouze do obrázkù a ukládat je na disk, nebo pro vykreslování vyu¾ít jiných grafických knihoven a \emph{GUI} (napø. \emph{wxWidgets} nebo \emph{Qt}), apod. A to implementováním jediné tøídy bez vìt¹ích zásahù do zdrojových kódy zbytku aplikace.
+
+
+\subsection{Vzorkovaè (tøída \texttt{Sampler)}}
+\label{ssec:4_sampler}
+
+Srdcem \emph{bezsnímkového} rendereru je vzorkovaè implementovaný ve tøídì \texttt{Sampler}. Ten v aktuální implementaci provádí vlastí vzorkování a aktualizaci pixelù a k tomu mu slou¾í dílèí komponenty potøebné pro vykonávání øízeného vzorkování a rekonstrukce obrazu. Øídící jednotka vzorkovaèe, které je pøedáno øízení z hlavní aplikace jako po¾adavek na aktualizaci nového pixelu, nejprve po¾ádá o nové souøadnice tøídu \texttt{TileManager} (ta realizuje vlastní øízené vzorkování a její detailní popis, viz podkapitola~\ref{sec:4_guiding_sampling}), která je získá a vrátí (krok $1$ v obrázku~\ref{fig:4_app_diagram} zobrazený èervenou barvou).
+
+Poté jsou v kroku $2$ pøedány novì získané souøadnice \emph{raytraceru}, který spoèítá aktuální barvu daného pixelu vr¾ením paprsku do scény (krok $3$) a získáním prùseèíku s nejbli¾¹ím primitivem (krok $4$). Nová barva, $i(x, y)$, je poté pøedána pomocnému \emph{sample bufferu} (krok $5$), který vytvoøí nový vzorek na daných pozicích s aktuální barvou a aktuálním èasovým razítkem jeho vzniku a ten si uchová. Souèasnì pomocí nového vzorku jsou spoèítány hodnoty gradientù v prostorové i èasové doménì, které budou pozdìji slou¾it pro výpoèet rozmìrù filtru pøi rekonstrukci (viz podkapitola~\ref{sec:4_reconstruction}). Nový vzorek a gradienty jsou vráceny zpìt øídící jednotce (krok $6$).
+
+Nyní je mo¾né provést vlastní rekonstrukci obrazu. Nový vzorek a právì spoèítané gradienty jsou pøedány do \emph{banky adaptivních filtrù} (krok $7$), která reprezentuje rekonstruktor. V ní dojde k vypoèítání rozmìrù filtru a spolu s èasovou slo¾kou filtru je následnì pøedán vzorek do \texttt{TileManageru} (krok $8$) a je proveden pøepoèet pravdìpodobností v¹ech oblastí pro øízený výbìr vzorku v pøí¹tí iteraci. Souèasnì dojde podle novì vytvoøeného filtru k vá¾ení sousedních pixelù okolo aktuálního vzorku pøesnì podle rovnice~\eqref{eq:3_full_reconstruction} a v¹echny okolní pixely s upravenými barvami $i'(x', y')$ jsou zapsány do vnitøního pomocného \texttt{imageBufferu} (krok $9$), v nìm¾ je uchován aktuální výstup. Rovnì¾ jsou zmìny promítnuty i do globálního \emph{frame bufferu} uvnitø komponenty \texttt{GLController} (krok $10$), která pozdìji provede jeho vykreslení (viz vý¹e). Na závìr je øízení vráceno zpìt ze vzorkovaèe hlavní aplikaci (krok $11$).
+
+
+\subsection{Implementace jednoduchého \emph{raytraceru}}
+\label{ssec:4_tracer}
+
+\emph{Raytracer} byl pøedstaven ji¾ v kapitole~\ref{sec:2_raytracer} a pøesnì podle tohoto teoretického základu byl i implementován. Jedná se pouze o jednoduchý \emph{raytracer}, který byl opro¹tìn od v¹ech slo¾itých a èasovì nároèných operací tak, aby zvládal základní po¾adovanou funkcionalitu (difuse, odlesky, odrazy a lomy, tvrdé stíny, textury a normálové mapy, øe¹ení anti-aliasingu, apod.). Samotná implementace byla z èásti pøevzata z døívìj¹ích projektù a z èásti inspirována v~\cite{SM03}. Vìt¹í èást v¹ak spoèívala v úpravì a pøizpùsobení \emph{raytraceru} pro potøeby této práce, zejména zakomponováním vlastní scény, která vychází z formátu \texttt{AFF} (viz vý¹e).
+
+
+\begin{figure}[p]
+	\centering
+	\includegraphics[width=9.5cm]{./fig/portfolio_cornell.png}
+	\caption{První ukázka výstupu \emph{raytraceru}, která ukazuje textury, \emph{normálové mapy}, odlesky a prùhledné koule na upravené scénì tzv. \emph{Cornell boxu}. Scéna obsahuje celkem $32$ primitiv. Se zapnutým \emph{supersamplingem} $3\times3$ byla na rozli¹ení $1\,024\times1\,024$ renderována pøibli¾nì $10$ minut.} 
+	\label{fig:4_raytracer_portfolio_a}
+\end{figure}
+
+\begin{figure}[p]
+	\centering
+	\includegraphics[width=12cm]{./fig/portfolio_museum.png}
+	\caption{Druhá ukázka výstupu \emph{raytraceru} na scénì \emph{Museum} z~\cite{BART00}. Scéna obsahuje animaci kamery a $1\,024$ animovaných trojúhelníkù. Celkem scéna obsahuje $11\,166$ primitiv. Renderování scény na rozli¹ení $800\times600$ se \emph{supersamplingem} $3\times3$ trvalo cca $40$ minut.} 
+	\label{fig:4_raytracer_portfolio_b}
+\end{figure}
+
+
+V rámci vzorkovaèe \emph{raytracer} úzce spolupracuje právì se scénou a na po¾ádání vytvoøí nový paprsek (krok $3$) podle pøedaných souøadnic a hledá prùseèík s nejbli¾¹ím primitivem ve scénì podle aktuálního stavu scény, tedy podle aktuální geometrie. Hledání prùseèíku je realizováno pomocí \emph{kd}-stromu (viz podkapitola~\ref{ssec:2_kd_tree}) nebo pøímo procházením a testováním v¹ech primitiv ve scénì. Souèasná implementace toti¾ nezohledòuje aktualizaci \emph{kd}-stromu napøíè animací, a proto je jeho vyu¾ití omezeno pouze na scény se statickou geometrií (tato funkcionalita byla nad rámec této práce). Pokud je nalezeno nejbli¾¹í primitivum (krok $4$), je pomocí rovnice~\eqref{eq:2_phong} spoèítána výsledná barva podle materiálu a osvìtlení v bodì prùseèíku, pøípadnì jsou vytvoøeny sekundární paprsky a ty jsou odra¾eny nebo zalomeny zpìt do scény podle nastavení materiálu právì protnutého primitiva. Výsledkem je barva v aktuálním bodì rastru, která je vrácena zpìt z \emph{raytraceru} (krok $5$).
+
+Vlastní \emph{raytracer}, spoleènì se scénou a \emph{kd}-stromem, byl implementován jako zcela samostatná jednotka, nezávislá na zbytku aplikace a lze ho tudí¾ pou¾ít i pro jiné úèely nebo projekty. Pøesto ¾e je velmi jednoduchý, zvládá generovat kvalitní výstup v relativnì krátkém èase (ukázka výstupu implementovaného \emph{raytraceru}, viz obrázky~\ref{fig:4_raytracer_portfolio_a} a~\ref{fig:4_raytracer_portfolio_b}).
+
+
+\section{Øízené vzorkování}
+\label{sec:4_guiding_sampling}
+
+O celé øízené vzorkování v rámci \emph{adaptivní} varianty se stará komponenta \texttt{TileManager}. Jejím úkolem je nejprve rozdìlit projekèní rovinu na oblasti a na po¾ádání vracet oblasti s nejvy¹¹í pravdìpodobností. A dále pak pøipoèítat váhu nového vzorku a upravit rozlo¾ení pravdìpodobností napøíè oblastmi.
+
+
+\subsection{Dìlení roviny a výbìr vzorku}
+\label{ssec:4_gs_tiling}
+
+Pøi implementaci øízeného vzorkování bylo vyu¾ito uniformní dìlení obrazu na stejnì veliké oblasti. O to se stará komponenta \texttt{TileManager}, která pøi své inicializaci vytvoøí binární strom, kde ka¾dý uzel je reprezentován pomocnou strukturou \texttt{TTileNodeInfo}. Tato struktura si uchovává ukazatele na rodièe, oba pod-uzly a objekt \texttt{Tile} reprezentující konkrétní oblast $U_i$. Ta je pøítomna pouze v listech stromu. Posledním atributem struktury je pravdìpodobnost, jen¾ je souètem pravdìpodobností obou pod-uzlù a nebo, pokud jde o list, je rovna pravdìpodobnosti dané oblasti. Jeliko¾ se jedná o binární strom, jsou pro jednoduchost povoleny pouze sudé poèty oblastí horizontálnì i vertikálnì, pøièem¾ poèty se mohou li¹it.
+
+Samotný výbìr konkrétní oblasti $U_i$ pak spoèíval v implementaci algoritmu $\tau$ z rovnice~\eqref{eq:3_tau_fn}. Algoritmus pracuje nad vý¹e zmínìným stromem a nechává propadnout náhodnì generované èíslo $r$ od koøene a¾ k listu, ve kterém je ulo¾ena konkrétní oblast $U_i$. Algoritmus $\tau$ je realizován metodou \texttt{GetTileWithinRange()} (viz zdrojový kód~\ref{src:4_get_tile_within_range}), která je implementována bez pou¾ití rekurze pøi prùchodu stromem. Tato metoda vrací pøímo oblast $U_i$ (tøída \texttt{Tile}) a teprve v ní jsou pak hledány souøadnice nového vzorku pomocí jedné z metod uvedených v kapitole~\ref{sec:2_monte_carlo}. Tyto souøadnice jsou vráceny zpìt vzorkovaèi. S pøihlédnutím k diagramu na obrázku~\ref{fig:4_app_diagram} se jedná o krok $1$.
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Metoda pro získání oblasti U\_i pro výbìr vzorku pomocí náhodného èísla r}} \\
+\texttt{\textcolor{type}{Tile} *\textcolor{type}{TileManager}::\textcolor{method}{GetTileWithinRange}()} \\
+\verb+{+ \\
+\verb+    +\texttt{\textcolor{type}{TTileNodeInfo} *\textcolor{var}{currNode} = \textcolor{var}{tilesTree}[\textcolor{number}{0}];~~~\textcolor{comment}{// vybraný uzel stromu, koøen}} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{r} = \textcolor{method}{random}() * \textcolor{var}{currNode}->\textcolor{var}{variance};~~\textcolor{comment}{// náhodné èíslo r}} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Hledá odpovídají oblast podle èísla r a jejich pravdìpodobnosti}} \\
+\verb+    +\texttt{\textcolor{keyword}{for}(\textcolor{keyword}{int} \textcolor{var}{i} = \textcolor{number}{0}; \textcolor{var}{i} <= \textcolor{var}{height}; \textcolor{var}{i}++)} \verb+{+ \\
+\verb+        +\texttt{\textcolor{comment}{// Pokud se ji¾ jedná o list, vrací po¾adovanou oblast}} \\
+\verb+        +\texttt{\textcolor{keyword}{if}(\textcolor{var}{currNode}->\textcolor{var}{tile} != \textcolor{keyword}{NULL}) \textcolor{keyword}{return} \textcolor{var}{currNode}->\textcolor{var}{tile};} \\
+\\
+\verb+        +\texttt{\textcolor{comment}{// Zkou¹í levý podstrom}} \\
+\verb+        +\texttt{\textcolor{keyword}{if}(\textcolor{var}{r} < \textcolor{var}{currNode}->\textcolor{var}{left}->\textcolor{var}{variance}) \textcolor{var}{currNode} = \textcolor{var}{currNode}->\textcolor{var}{left};} \\
+\verb+        +\texttt{\textcolor{comment}{// Zkou¹í pravý podstrom}} \\
+\verb+        +\texttt{\textcolor{keyword}{else}} \verb+{+ \\
+\verb+            +\texttt{\textcolor{var}{r} -= \textcolor{var}{currNode}->\textcolor{var}{left}->\textcolor{var}{variance};} \\
+\verb+            +\texttt{\textcolor{var}{currNode} = \textcolor{var}{currNode}->\textcolor{var}{right};} \\
+\verb+        }+ \\
+\verb+    }+ \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Pravdìpodobnì do¹lo k chybì jeliko¾ nebyla nalezena ¾ádná oblast}} \\
+\verb+    +\texttt{\textcolor{keyword}{return NULL};} \\
+\verb+}+
+\end{small}
+	\caption{Zdrojový kód metody \texttt{GetTileWithinRange()}, která implementuje algoritmus $\tau$ (rovnice~\eqref{eq:3_tau_fn}) a nerekurzivnì prochází binárním stromem. Podle pravdìpodobností jednotlivých uzlù hledá správnou oblast obrazu, kterou následnì vrací. Hledání oblasti je realizováno pomocí náhodnì generovaného èísla $r$ v rozsahu $0$ -- max. pravdìpodobnost koøenového uzlu.}
+	\label{src:4_get_tile_within_range}
+\end{program}
+
+
+\subsection{Aktualizace pravdìpodobnosti}
+\label{ssec:4_gs_heuristic}
+
+Finální rovnice pro výpoèet heuristiky $h(U_i)$ a váhové funkce $\lambda$ byla pøedstavena v kapitole~\ref{ssec:3_heuristic_algorithm}, konkrétnì se jedná o rovnici:
+
+
+\begin{displaymath}
+	\sigma^2(U_{i, a+1}) = \overline{i^2}_{a+1} - \overline{i}_{a+1}
+	\mathrm{.}
+\end{displaymath}
+
+
+\noindent Její hlavní výhodou je konstantní èasová slo¾itost $\mathcal{O}(1)$ a iterativní zpùsob, pro který je nutné pro ka¾dou oblast $U_i$ uchovávat pouze poslední sumu vah (\texttt{ageWeightSum}) a poslední èas výbìru vzorku z dané oblasti (\texttt{lastSampleTime}). Aktualizace pravdìpodobnosti aktuálnì vybrané oblasti je inicializována z \emph{banky adaptivních filtrù}, která pøedstavuje zjednodu¹enì rekonstruktor a s pøihlédnutím k diagramu~\ref{fig:4_app_diagram} se jedná o krok $8$. Komponenta \texttt{TileManager} nejprve pøidá barvu nového vzorku do døíve vybrané oblasti v kroku $1$ (metoda \texttt{AddSample()} tøídy \texttt{Tile}, viz zdrojový kód~\ref{src:4_add_sample}) a následnì provede aktualizaci pravdìpodobností v¹ech uzlù stromu od daného listu s oblastí k jeho koøenu (metoda \texttt{UpdateVariances()} tøídy \texttt{TileManager}).
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Pøidá váhu vzorku do pravdìpodobnosti dané oblasti}} \\
+\texttt{\textcolor{keyword}{void} \textcolor{type}{Tile}::\textcolor{method}{AddSample}(\textcolor{keyword}{const} \textcolor{type}{TSample}* \textcolor{keyword}{const} \textcolor{var}{smpl}, \textcolor{keyword}{const} \textcolor{keyword}{float} \&\textcolor{var}{scale})} \\
+\verb+{+ \\
+\verb+    +\texttt{\textcolor{comment}{// Výpoèet váhy pro vá¾ení barvy vzorku}} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{factor} = \textcolor{var}{smpl}->\textcolor{var}{color}.\textcolor{method}{Grayscale}();~~\textcolor{comment}{// barva v odstínech ¹edi}} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{weight} = \textcolor{method}{expf}((\textcolor{var}{lastSampleTime} - \textcolor{var}{smpl}->\textcolor{var}{time}) / \textcolor{var}{scale}) * \textcolor{var}{ageWeightSum};} \\
+\\	
+\verb+    +\texttt{\textcolor{comment}{// Spoèítá oèekávané hodnoty i' and i'\^\{2\} pro daný krok}} \\
+\verb+    +\texttt{\textcolor{var}{expVal} = ((\textcolor{var}{weight} * \textcolor{var}{expVal}) + \textcolor{var}{factor}) / (\textcolor{var}{weight} + \textcolor{number}{1.0});} \\
+\verb+    +\texttt{\textcolor{var}{expValSqr} = ((\textcolor{var}{weight} * \textcolor{var}{expValSqr}) + (\textcolor{var}{factor} * \textcolor{var}{factor})) / (\textcolor{var}{weight} + \textcolor{number}{1.0});} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Aktualizuje pravdìpodobnost oblasti}} \\
+\verb+    +\texttt{\textcolor{var}{variance} = \textcolor{var}{expValSqr} - (\textcolor{var}{expVal} * \textcolor{var}{expVal});~~~~~~~~~\textcolor{comment}{// Steinerùv teorém}} \\
+\verb+    +\texttt{\textcolor{var}{variance} = (\textcolor{var}{variance} <= \textcolor{number}{0.01}) ? \textcolor{number}{0.01} : \textcolor{var}{variance};~~\textcolor{comment}{// O¹etøení vyhladovìní}} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Aktualizuje sumu vah a èasové razítko pro dal¹í iteraci}} \\
+\verb+    +\texttt{\textcolor{var}{ageWeightSum} = (\textcolor{var}{weight} + \textcolor{number}{1.0});} \\
+\verb+    +\texttt{\textcolor{var}{lastSampleTime} = \textcolor{var}{smpl}->\textcolor{var}{time};} \\
+\verb+}+
+\end{small}
+
+	\caption{Implementace rovnice~\eqref{eq:3_sigma_fn_3} s vyu¾itím její inkrementální podoby z rovnice~\eqref{eq:3_final_heuristic} pro aktualizaci pravdìpodobnosti dané oblasti $U_i$, která je volána po ka¾dém spoèítaném vzorku.}
+	\label{src:4_add_sample}
+\end{program}
+
+
+Klíèový parametr metody \texttt{AddSample()} je parametr \texttt{scale}, který pøedstavuje faktor $s$ váhové funkce $\lambda$ z rovnice~\eqref{eq:3_lambda_fn} pro urèení váhy pùvodní pravdìpodobnosti oblasti v èase od  jejího posledního výbìru. Èím vy¹¹í je faktor $s$, tím star¹í vzorky mají vìt¹í váhu a tím bude i vy¹¹í pravdìpodobnost pro výbìr dané oblasti, naopak pro malé hodnoty faktoru $s$ nemá pùvodní pravdìpodobnost ¾ádný pøínos a nová hodnota vzorku výslednou pravdìpodobnost ovlivní daleko více. Pokud je $s = 1$ dochází prakticky k úplnému potlaèení øízeného vzorkování. Graf na obrázku~\ref{fig:4_lambda_fn} ukazuje závislost váhy v èase podle faktoru $s$.
+
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=12cm]{./fig/gs_lambda_fn.pdf}
+	\caption{Váhová funkce $\lambda (t_l - t_a) = e^{(t_l - t_a) / s}$ z rovnice~\eqref{eq:3_lambda_fn} pro rùzné hodnoty faktoru $s$. Z obrázku je patrné, ¾e pro malé hodnoty $s$ jsou star¹í vzorky ménì významné pro celkovou pravdìpodobnost oblasti ne¾ pro vìt¹í hodnoty faktoru $s$. Napø. pro $s = 100$ dosahuje váha pùvodní pravdìpodobnosti po ètvrt vteøinì ménì ne¾ $10\%$. Na druhou stranu, hodnota $s = 1000$ znamená váhu pravdìpodobnosti okolo $10\%$ i pro oblasti, které nebyly vzorkovány tøi vteøiny. Ideální se jeví prostøední èervená køivka pro $s = 500$, jak se ale ukázalo pøi testování aplikace, zále¾í zejména na typu scény.}
+	\label{fig:4_lambda_fn}
+\end{figure}
+
+
+\section{Rekonstrukce}
+\label{sec:4_reconstruction}
+
+V~\cite{DWWL05} je celá rekonstrukce oddìlená od vlastní implementace a pøesunuta na samostatnou výpoèetní jednotku, na grafickou kartu. Tímto krokem je sice výraznì zvý¹en výpoèetní výkon, ale na druhou stranu rovnì¾ poru¹en základní princip \emph{bezsnímkového renderování}, které je nyní realizováno \uv{snímkovì}, nebo» rekonstruktor musí èekat na získání barvy nového vzorku z raytraceru a teprve pøed zobrazením nového snímku na obrazovce je celá rekonstrukce provedena. Proto byla v demonstraèní aplikaci rekonstrukce pøímo zaèlenìna do vzorkovaèe a je realizována komponentami \texttt{sampleBuffer} a \emph{bankou adaptivních filtrù}.
+
+Pøesto, ¾e by se mohlo zdát, ¾e implementace rekonstrukce obrazu bude spoèívat pouze ve finální rovnici~\eqref{eq:3_full_reconstruction}, není tomu tak a pøi její implementaci bylo nutné øe¹it nìkolik dílèích problémù. Jednalo se o výpoèet derivací, výpoèet objemu $V_s$ a øe¹ení anti-aliasingu.
+
+
+\subsection{Aproximace smìrových derivací, èasová derivace}
+\label{ssec:4_rc_derivatives}
+
+Výpoèet smìrových derivací $d_x$, $d_y$ a $d_t$ je realizován komponentou \texttt{sampleBuffer}, která uchovává v¹echny vzorky napøíè rastrem. Samotný výpoèet derivací v¹ak není triviální zále¾itost a v poèítaèové grafice nebývají derivace poèítány pøímo, ale aproximují se. V~\cite{DWWL05} aproximují prostorové derivace $d_x$ a $d_y$ výbìrem ètyø nových vzorkù, které le¾í na sousedních pozicích okolo aktuálního vzorku horizontálnì a vertikálnì, pøi rekonstrukci ka¾dého vzorku tedy vytváøejí køí¾ (tzv. \emph{crosshair}) z $5$ vzorkù. Pro výpoèet èasové derivace berou dal¹í, ¹estý, vzorek na úplnì nové pozici v èase. Na v¹echny vzorky jsou pak aplikovány diferenèní filtry pro správnou aproximaci derivací. Tento pøístup je jistì správný, av¹ak èasovì velmi nároèný ($5$krát je volán \emph{raytracer} pro výpoèet barvy pomocných vzorkù).
+
+Naopak v~\cite{S06} je postup velmi zjednodu¹ený. Pro aproximaci derivací je vyu¾it \emph{Sobelùv operátor} na aktuální obsah \texttt{sampleBufferu} v odstínech ¹edi. Tento postup byl zvolen i v této práci. Prostorové derivace jsou poèítány pomocí konvoluèních masek:
+
+
+\begin{equation}
+	s_x = \dfrac{1}{8}
+	\left(
+    	\begin{array}{rrr}
+	    	-1 & 0 & 1 \\
+	    	-2 & 0 & 2 \\
+	    	-1 & 0 & 1
+	    \end{array}
+	\right) \quad \mathrm{a} \quad s_y = \dfrac{1}{8}
+	\left(
+    	\begin{array}{rrr}
+	    	1 & 2 & 1 \\
+	    	0 & 0 & 0 \\
+	    	-1 & -2 & -1
+	    \end{array}
+	\right)
+	\mathrm{.}
+	\label{eq:4_sobel_operators}
+\end{equation}
+
+
+\noindent Tento pøístup je nejen jednoduchý, ale rovnì¾ velmi rychlý. Pøevod barev do odstínù ¹edi je provádìn pomocí rovnice~\eqref{eq:3_yuv_grayscale}. Výpoèet prostorových derivací je realizován aplikováním pøíslu¹né masky na osmi-okolí pixelu, ze kterého byl vybrán aktuální vzorek. Èasovou derivaci lze spoèítat obdobnì. Nejprve je nutné získat rozdíl barev v aktuálním a posledním platném èase, ideálnì opìt z osmi-okolí daného pixelu. A na tyto hodnoty pak aplikovat \emph{binomiální filtr} $b_t$:
+
+
+\begin{equation}
+	b_t = \dfrac{1}{4}
+	\left(
+    	\begin{array}{rrr}
+	    	1 & 2 & 1
+	    \end{array}
+	\right) \quad \longrightarrow \quad b_t = \dfrac{1}{16}
+	\left(
+    	\begin{array}{rrr}
+	    	1 & 2 & 1 \\
+	    	2 & 4 & 2 \\
+	    	1 & 2 & 1
+	    \end{array}
+	\right)
+	\mathrm{.}
+	\label{eq:4_binomial_filter}
+\end{equation}
+
+
+\noindent Pro výpoèet èasové derivace je nutné uchovávat dvì hodnoty, aktuální a minulou barvu v ka¾dém pixelu. Z tohoto dùvodu obsahuje komponenta \texttt{sampleBuffer} dvì pomocná pole o rozmìrech $M \times N$ pixelù a støídavì do nich zapisuje nové hodnoty vzorkù, kde v¾dy jedno pole (nikoliv nutnì první z nich) na pozici $(x, y)$ obsahuje aktuální barvu a druhé pole obsahuje na stejné pozici poslední platnou barvu. Ta bude pøi dal¹í aktualizaci daného pixelu pøepsána novou, budoucí platnou barvou.
+
+Jak se ale ukázalo, náhodný výbìr vzorkù napøíè rastrem, resp. napøíè jedním pixelem (pozice vzorku dosud nebyla nijak omezena a mohla le¾et kdekoliv uvnitø pixelu) není pro výpoèet derivací vhodný. Lep¹í a stabilnìj¹í variantou pro aproximaci derivací je zvolit pozici vzorku tak, aby le¾ela v¾dy v levém horním rohu ka¾dého pixelu. Jeliko¾ je v¹ak jedním z po¾adavkù na rekonstrukci obrazu provádìní \emph{anti-aliasingu} tam, kde je scéna del¹í dobu statická, znamená to poèítat v¾dy vzorky dva: první na libovolné pozici uvnitø pixelu (právì pro øe¹ení \emph{anti-aliasingu}, viz podkapitola~\ref{ssec:4_rc_antialiasing}) a druhý v¾dy v levém horním rohu pixelu (pro výpoèet prostorových a èasových derivací). Z toho dùvodu obsahuje komponenta \texttt{sampleBuffer} celkem dvì pomocná trojrozmìrná pole. Obì mají rozmìry $M \times N$. Jedno má hloubku nastavenu na $2$ pro ukládání vzorkù pouze v odstínech ¹edi na pozicích v levém horním rohu pøíslu¹ného pixelu pro aproximaci derivací, tak jak bylo popsáno vý¹e. Druhé pole, pro ukládání skuteèných vzorkù, které budou zapsány do výstupního image bufferu (pro øe¹ení anti-aliasingu), má hloubku $s_d$.
+
+
+\subsection{Výpoèet objemu $V_s$ a vzorkovací frekvence $R(U_i)$}
+\label{ssec:4_rc_sampling_rate}
+
+Objem rekonstrukèního filtru bude udávat velikosti jeho rozsahù a je poèítán podle rovnice~\eqref{eq:3_volume_s}. Co tedy zbývá vypoèítat je vzorkovací frekvence $R(U_i)$ pro ka¾dou oblast. Ta byla definována jako poèet vzorkù aktualizovaných v oblasti $U_i$ v èasovém intervalu $\langle t_h, t\rangle$, kde $t_h$ oznaèuje poslední platný èas. Vzorkovací frekvenci lze poèítat podle rovnice:
+
+
+\begin{equation}
+	R(U_i) = \dfrac{\vert S\vert}{m \cdot n} \mathrm{,} \quad \mathrm{kde} \quad 
+	S = \{i(x, y, t_k) \vert t_k > t_h\}
+	\mathrm{,}
+	\label{eq:4_sampling_rate}
+\end{equation}
+
+
+\noindent kde $m$ udává ¹íøku oblasti $U_i$ v pixelech a $n$ pak její vý¹ku. Lze si pov¹imnout, ¾e v okam¾iku, kdy platí $R(U_i) > 1$, dochází automaticky k supersamplingu obrazu a tedy k \emph{anti-alisingu}.
+
+Výpoèet vzorkovací frekvence je realizován pomocí kódu~\ref{src:4_update_sampling_rate}, který vyu¾ívá pomocného pole \texttt{recentSamplesTime}. V nìm jsou za sebou ulo¾eny èasy v¹ech vzorkù vybraných v dané oblasti. Dále je pou¾it ukazatel na index posledního platného vzorku \texttt{lastValidSampleIdx}. Poèet v¹ech platných vzorkù je pak poèet vzorkù od ukazatele \texttt{lastValidSampleIdx} a koncem pole. Metoda \texttt{UpdateSamplingRate()} tøídy \texttt{Tile} provede aktualizaci èítaèe platných vzorkù v¾dy po pøidání nového vzorku v kroku $8$. Promìnná \texttt{now} obsahuje aktuální èas a promìnná \texttt{timeSpan} èasový úsek, po který jsou vzorky platné, tedy z pøihlédnutím ke kapitole~\ref{ssec:3_filter_extents} napø. $1\,000$ milisekund.
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Aktualizuje poèet platných vzorkù v oblasti}} \\
+\texttt{\textcolor{keyword}{void} \textcolor{type}{Tile}::\textcolor{method}{UpdateSamplingRate}(\textcolor{keyword}{const} \textcolor{keyword}{unsigned} \&\textcolor{var}{timeSpan}, \textcolor{keyword}{const} \textcolor{keyword}{unsigned} \&\textcolor{var}{now})} \\
+\verb+{+ \\
+\verb+    +\texttt{\textcolor{keyword}{unsigned} \textcolor{var}{i} = \textcolor{var}{lastValidSampleIdx};} \\
+\verb+    +\texttt{\textcolor{keyword}{while}(\textcolor{var}{validSamplesNum} > \textcolor{number}{0} \&\& (\textcolor{var}{now} - \textcolor{var}{recentSamplesTime}[\textcolor{var}{i}]) > \textcolor{var}{timeSpan})} \verb+{+ \\
+\verb+        +\texttt{\textcolor{var}{validSamplesNum}--;} \\
+\verb+        +\texttt{\textcolor{var}{i}++;} \\
+\verb+    }+ \\
+\verb+    +\texttt{\textcolor{var}{lastValidSampleIdx} = \textcolor{var}{i};} \\
+\verb+}+
+\end{small}
+
+	\caption{Aktualizace vzorkovací frekvence $R(U_i)$.}
+	\label{src:4_update_sampling_rate}
+\end{program}
+
+
+\subsection{Øe¹ení \emph{anti-aliasingu}}
+\label{ssec:4_rc_antialiasing}
+
+Pro dosa¾ení \emph{anti-aliasingu} v \emph{bezsnímkovém} rendereru není ¾ádoucí poèítat nìkolik vzorkù pro ka¾dý pixel, tak jako napø. v \emph{raytraceru}, ale získat ho zadarmo, tam, kde je scéna del¹í dobu statická. Jak se ukázalo, libovolná pozice vzorku uvnitø pixelu není vyhovující. Lep¹ím øe¹ením je zvolit nìkolik fixních pozic uvnitø pixelu jako \emph{offset} od jeho levého horního rohu (napø. náhodnì nebo pomocí \emph{Haltonovy} posloupnosti). Pro výbìr offsetu pro konkrétní pixel $(x, y)$ je implementován pomocný buffer ukazatelù opìt o rozmìrech $M \times N$, kde ka¾dá hodnota udává index do pole offsetù. Pøi aktualizaci konkrétního pixelu je pak zvolen pøíslu¹ný offset, který je pøièten k pozici pixelu a ukazatel v pomocném bufferu je posunut na dal¹í offset. Pøi dal¹í aktualizaci tého¾ pixelu pak bude vybrán nový offset. A jeliko¾ je poèet vzorkù na pixel $s_d$ --- tedy velikost pole s offsety --- koneèný, jsou ukazatele posouvány cyklicky od $0$ do $s_d - 1$. Jedná se o druhé pomocné pole o hloubce $s_d$ pøítomné v komponentì \texttt{sampleBuffer}, zmiòované vý¹e. Tímto principem je zaji¹tìn správný výbìr pozice vzorku v oblasti jednoho pixelu a je dosa¾eno lep¹ích výsledkù pøi potlaèení aliasù v obraze tam, kde je scéna statická. 
+
+Pøi implementaci se ukázalo jako vhodnìj¹í øe¹ení rozdìlit rekonstrukci a výpoèet \emph{anti-aliasingu} do dvou èástí. Tam, kde je scéna statická nedochází v èase k ¾ádným zmìnám a èasová derivace $d_t$ se blí¾í k nule. V tomto pøípadì je pak vhodné nastavit parametry èasového filtru $r_t$ manuálnì na nìjakou vìt¹í hodnotu. Nebo» tam, kde je scéna del¹í dobu statická, mají i vzorky staré napø. $1,5$ vteøiny stále vysokou váhu a tím vìt¹í èástí pøispìjí svojí barvou k novému vzorku. Jeho barva se bude li¹it výraznì pouze na hranách, èím¾ dojde k jejich vyhlazení. Celá idea je nastínìna v kódu~\ref{src:4_anti-aliasing}.
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Pokud je èasová derivace dostateènì velká, provede se klasická rekonstrukce}} \\
+\texttt{\textcolor{keyword}{if}(\textcolor{var}{dT} > \textcolor{number}{0.0001})} \verb+{+ \\
+\verb+    +\texttt{\textcolor{comment}{// vlastní rekonstrukce}} \\
+\verb+}+ \\
+\texttt{\textcolor{comment}{// V opaèném pøípadì jsou váhy nastaveny ruènì a provádí se anti-aliasing}} \\
+\texttt{\textcolor{keyword}{else}} \verb+{+ \\
+\verb+    +\texttt{\textcolor{method}{DrawSample}(\textcolor{var}{x}, \textcolor{var}{y}, \textcolor{var}{smpl}, \textcolor{number}{1500.0f}, \textcolor{number}{1.0f});} \\
+\verb+    +\texttt{\textcolor{var}{tile}->\textcolor{method}{AddSample}(\textcolor{var}{smpl}, \textcolor{number}{500.0f});} \\
+\verb+    +\texttt{\textcolor{var}{tileManager}->\textcolor{method}{UpdateVariances}(\textcolor{var}{tile});} \\
+\verb+}+
+\end{small}
+
+	\caption{Rozdìlení rekonstrukèního algoritmu na dvì èásti. Pokud se souèasná èasová derivace na pozici $(x, y)$ blí¾í nule, je provedeno ruèní nastavení vah a faktoru $s$ a øe¹en \emph{anti-aliasing}. V opaèném pøípadì je provedena rekonstrukce podle zdrojového kódu~\ref{src:4_reconstruct}.}
+	\label{src:4_anti-aliasing}
+\end{program}
+
+
+\subsection{Rekonstrukèní algoritmus}
+\label{ssec:4_rc_reconstruction}
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Pøidá novou barvu do frame bufferu, pøedtím na ni aplikuje váhy}} \\
+\texttt{\textcolor{keyword}{void} \textcolor{type}{Sampler}::\textcolor{method}{DrawSample}(\textcolor{keyword}{int} \&\textcolor{var}{x}, \textcolor{keyword}{int} \&\textcolor{var}{y}, \textcolor{type}{TSample}* \textcolor{var}{smpl}, \textcolor{keyword}{float} \&\textcolor{var}{scale}, \textcolor{keyword}{float} \&\textcolor{var}{sw})} \\
+\verb+{+ \\
+\verb+    +\texttt{\textcolor{comment}{// Pùvodní barva pixelu a výpoèet èasové váhy 'tw'}} \\
+\verb+    +\texttt{\textcolor{keyword}{unsigned} \textcolor{var}{index} = \textcolor{var}{x}+\textcolor{var}{y}*\textcolor{var}{resolution}.\textcolor{method}{x}();} \\
+\verb+    +\texttt{\textcolor{type}{Color} \textcolor{var}{clr} = \textcolor{var}{imageBuffer}->\textcolor{method}{GetPixel}(\textcolor{var}{x}, \textcolor{var}{y});} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{tw} = \textcolor{method}{expf}((\textcolor{var}{lastTimes}[\textcolor{var}{index}] - \textcolor{var}{smpl}->\textcolor{var}{age}) / \textcolor{var}{scale}) * \textcolor{var}{ageWeights}[\textcolor{var}{index}];} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Vá¾í novou barvu vzorku s pùvodní barvou pixelu pro ka¾dou slo¾ku oddìlenì}} \\
+\verb+    +\texttt{\textcolor{var}{clr}.\textcolor{var}{red} = ((\textcolor{var}{sw}*\textcolor{var}{smpl}->\textcolor{var}{color}.\textcolor{var}{red}) + (\textcolor{var}{tw}*\textcolor{var}{clr}.\textcolor{var}{red})) / (\textcolor{var}{sw} + \textcolor{var}{tw});} \\
+\verb+    +\texttt{\textcolor{var}{clr}.\textcolor{var}{green} = ((\textcolor{var}{sw}*\textcolor{var}{smpl}->\textcolor{var}{color}.\textcolor{var}{green}) + (\textcolor{var}{tw}*\textcolor{var}{clr}.\textcolor{var}{green})) / (\textcolor{var}{sw} + \textcolor{var}{tw});} \\
+\verb+    +\texttt{\textcolor{var}{clr}.\textcolor{var}{blue} = ((\textcolor{var}{sw}*\textcolor{var}{smpl}->\textcolor{var}{color}.\textcolor{var}{blue}) + (\textcolor{var}{tw}*\textcolor{var}{clr}.\textcolor{var}{blue})) / (\textcolor{var}{sw} + \textcolor{var}{tw});} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Aktualizuje váhy a nastaví nový èas aktualizace pixelu}} \\
+\verb+    +\texttt{\textcolor{var}{ageWeights}[\textcolor{var}{index}] = \textcolor{var}{sw} + \textcolor{var}{tw};} \\
+\verb+    +\texttt{\textcolor{var}{lastTimes}[\textcolor{var}{index}] = \textcolor{var}{smpl}->\textcolor{var}{age};} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Nastaví novou barvu pixelu (x, y)}} \\
+\verb+    +\texttt{\textcolor{var}{imageBuffer}->\textcolor{method}{SetPixel}(\textcolor{var}{x}, \textcolor{var}{y}, \textcolor{var}{clr});} \\
+\verb+}+
+\end{small}
+
+	\caption{Metoda \texttt{DrawSample()} tøídy \texttt{Sampler}, která se stará o vá¾ení nové barvy vzorku prostorovou vahou (\texttt{sw}) a pùvodní hodnoty pixelu èasovou vahou (\texttt{tw}). Po pøepoètu v¹ech barevných slo¾ek je aktualizována suma vah (buffer \texttt{ageWeights}) a poslední èas aktualizace daného pixelu (buffer \texttt{lastTimes}). Jak je vidìt, metoda \texttt{DrawSample()} je velmi podobná metodì \texttt{AddSample()} objektu \texttt{Tile} z kódu~\ref{src:4_add_sample}.}
+	\label{src:4_draw_sample}
+\end{program}
+
+
+Samotný rekonstrukèní algoritmus implementuje rovnici~\eqref{eq:3_full_reconstruction} a je reprezentován v \emph{bankou adaptivních filtrù}. Ta z øídící jednotky vzorkovaèe v kroku $7$ obdr¾í nový vzorek a gradienty, podle kterých vypoèítá rozsahy nového filtru $e_x$, $e_y$ a $e_t$. Novì vytvoøený filtr nejprve pøidá vzorek do dané oblasti pro aktualizaci rozlo¾ení pravdìpodobností (krok $8$). Následnì iteruje nad v¹emi pixely v nejbli¾¹ím okolí pixelu, ze kterého byl aktuální vzorek vybrán, a seète jejich pùvodní barvu vá¾enou èasovým filtrem $r_t$ s barvou aktuálního vzorku, která je vá¾ená prostorovým filtrem $r_s$. Nová barva na aktuální pozici v okolí pixelu $i'(x', y')$ je nejprve zapsána do pomocného \emph{image bufferu} vzorkovaèe (krok $9$) a rovnì¾ je zapsána do globálního \emph{frame bufferu} v komponentì \texttt{GLController} (krok $10$), která pozdìji provede jeho vykreslení na displej.
+
+Díky inkrementální formì rovnice~\eqref{eq:3_full_reconstruction} není zapotøebí ¾ádných slo¾itých struktur pro ukládání informací o starých vzorcích apod. Je v¹ak nutné uchovávat starou sumu vah $w_k$ (\texttt{ageWeights}) pro daný pixel a poslední èas $t_k$ (\texttt{lastTimes}), kdy byl daný pixel aktualizován. Tyto hodnoty je nutné uchovávat pro v¹echny pixely v rastru. To bylo implementováno pomocí dvou pomocných dvourozmìrných polí, která jsou pøítomna pøímo ve vzorkovaèi a \emph{banka filtrù} s nimi pracuje. Implementace výpoètu nové barvy pixelu zapojením obou filtrù je znázornìna v kódu~\ref{src:4_draw_sample} v metodì \texttt{DrawSample()}. Výpoèet nové barvy je nutné provést celkem tøikrát pro v¹echny její slo¾ky. Celý prùbìh rekonstrukce, vèetnì získání derivací, výpoètu objemu filtru a jeho rozsahù a iterování nad pøíslu¹nými pixely je pak nastínìno v kódu~\ref{src:4_reconstruct}.
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Spoèítá derivace v jednotlivých smìrech}} \\
+\texttt{\textcolor{method}{CalculateDerivatives}(\textcolor{var}{x}, \textcolor{var}{y}, \textcolor{var}{dX}, \textcolor{var}{dY}, \textcolor{var}{dT});} \\
+\\
+\texttt{\textcolor{comment}{// Pøedpøipraví rozsahy filtru pro dal¹í výpoèet}} \\	
+\texttt{\textcolor{keyword}{float} \textcolor{var}{ex} = \textcolor{number}{1.0} - \textcolor{var}{dX};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{ey} = \textcolor{number}{1.0} - \textcolor{var}{dY};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{et} = \textcolor{number}{1.0} - \textcolor{var}{dT};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{eSum} = \textcolor{var}{ex} + \textcolor{var}{ey} + \textcolor{var}{et};} \\
+\\
+\texttt{\textcolor{comment}{// Spoèítá objem filtru podle V\_s = 1 / R(U\_i) a upraví rozmìry filtru}} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{Vs} = \textcolor{var}{pixelsPerTile} / (\textcolor{keyword}{float})(\textcolor{var}{tile}->\textcolor{method}{GetValidSamplesNum}() + \textcolor{number}{1});} \\
+\texttt{\textcolor{var}{ex} *= (\textcolor{var}{Vs} / \textcolor{var}{eSum}); \textcolor{var}{ey} *= (\textcolor{var}{Vs} / \textcolor{var}{eSum}); \textcolor{var}{et} *= (\textcolor{var}{Vs} / \textcolor{var}{eSum});} \\
+\\
+\texttt{\textcolor{comment}{// Pøipraví konstanty pro vlastní rekonstrukci}} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{scaleFactor} = \textcolor{number}{100.0} * \textcolor{var}{et};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{gaussFactor} = \textcolor{number}{9.0} / (\textcolor{number}{2.0} * \textcolor{type}{M\_PI} * \textcolor{var}{ex} * \textcolor{var}{ey});} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{exSqr} = \textcolor{var}{ex} * \textcolor{var}{ex};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{eySqr} = \textcolor{var}{ey} * \textcolor{var}{ey};} \\
+\\
+\texttt{\textcolor{comment}{// Pøidá nový vzorek do oblasti a aktualizuje pravdìpodobnosti skrze celý strom}} \\
+\texttt{\textcolor{var}{tile}->\textcolor{method}{AddSample}(\textcolor{var}{smpl}, \textcolor{var}{scaleFactor});} \\
+\texttt{\textcolor{var}{tileManager}->\textcolor{method}{UpdateVariances}(\textcolor{var}{tile});} \\
+\\
+\texttt{\textcolor{comment}{// Pokryje v¹echny pixely v x-ové ose od -e\_x do e\_x}} \\
+\texttt{\textcolor{keyword}{for}(\textcolor{keyword}{int} \textcolor{var}{dx} = -(\textcolor{keyword}{int})\textcolor{var}{ex}; \textcolor{var}{dx} <= (\textcolor{keyword}{int})\textcolor{var}{ex}; \textcolor{var}{dx}++)} \verb+{+ \\
+\verb+    +\texttt{\textcolor{keyword}{int} \textcolor{var}{cx} = \textcolor{var}{x} + \textcolor{var}{dx};} \\
+\verb+    +\texttt{\textcolor{keyword}{if}(\textcolor{var}{cx} < \textcolor{number}{0} || \textcolor{var}{cx} >= (\textcolor{keyword}{int})\textcolor{var}{resolution}.\textcolor{method}{x}()) \textcolor{keyword}{continue};} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{tx} = \textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{x}() - \textcolor{var}{dx} - \textcolor{number}{0.5};} \\
+\verb+    +\texttt{\textcolor{var}{tx} = (\textcolor{var}{tx}*\textcolor{var}{tx}) / \textcolor{var}{exSqr};} \\
+\\				
+\verb+    +\texttt{\textcolor{comment}{// Pokryje v¹echny pixely v y-ové ose od -e\_y do e\_y}} \\
+\verb+    +\texttt{\textcolor{keyword}{for}(\textcolor{keyword}{int} \textcolor{var}{dy} = -(\textcolor{keyword}{int})\textcolor{var}{ey}; \textcolor{var}{dy} <= (\textcolor{keyword}{int})\textcolor{var}{ey}; \textcolor{var}{dy}++)} \verb+{+ \\
+\verb+        +\texttt{\textcolor{keyword}{int} \textcolor{var}{cy} = \textcolor{var}{y} + \textcolor{var}{dy};} \\
+\verb+        +\texttt{\textcolor{keyword}{if}(\textcolor{var}{cy} < \textcolor{number}{0} || \textcolor{var}{cy} >= (\textcolor{keyword}{int})\textcolor{var}{resolution}.\textcolor{method}{y}()) \textcolor{keyword}{continue};} \\
+\verb+        +\texttt{\textcolor{keyword}{float} \textcolor{var}{ty} = \textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{y}() - \textcolor{var}{dy} - \textcolor{number}{0.5};} \\
+\verb+        +\texttt{\textcolor{var}{ty} = (\textcolor{var}{ty}*\textcolor{var}{ty}) / \textcolor{var}{eySqr};} \\
+\\						
+\verb+        +\texttt{\textcolor{comment}{// Spoèítá prostorou váhu filtru a vykreslí pixel}} \\
+\verb+        +\texttt{\textcolor{keyword}{float} \textcolor{var}{spatialWeight} = \textcolor{var}{gaussFactor} * \textcolor{method}{expf}(-\textcolor{number}{4.5} * (\textcolor{var}{tx} + \textcolor{var}{ty}));} \\
+\verb+        +\texttt{\textcolor{method}{DrawSample}(\textcolor{var}{cx}, \textcolor{var}{cy}, \textcolor{var}{smpl}, \textcolor{var}{scaleFactor}, \textcolor{var}{spatialWeight});} \\
+\verb+    }+ \\
+\verb+}+
+\end{small}
+
+	\caption{Ukázka algoritmu provádìjícího vlastní rekonstrukci. Nejprve jsou vypoèítány absolutní hodnoty derivací v jednotlivých smìrech podle rovnic~\eqref{eq:4_sobel_operators} a~\eqref{eq:4_binomial_filter} a z nich jsou získány rozmìry filtru podle rovnice~\eqref{eq:3_extents_1b}. Následuje pøidání vzorku do vybrané oblasti a pøepoèítání pravdìpodobností v¹ech oblastí. Poté jsou aktualizovány v¹echny pixely, které pokrývají rozmìry filtru. Prostorová váha udává vzdálenost nového vzorku od støedu ka¾dého filtrovaného pixelu. Samotné zapsání nové barvy pixelu a jeho vá¾ení èasovým filtrem je provádìno metodou \texttt{DrawSample()} zobrazené v kódu~\ref{src:4_draw_sample}.}
+	\label{src:4_reconstruct}
+\end{program}
+
+
+\section{Mo¾ná roz¹íøení a budoucí vývoj}
+\label{sec:4_future_work}
+
+Souèasný stav demonstraèní aplikace je jistì dostaèující, av¹ak ne zcela optimální. Ji¾ pøi návrhu bylo upu¹tìno od v¹ech pokroèilej¹ích metod a implementace se zamìøila na hlavní aspekty \emph{bezsnímkové} metody a její \emph{adaptivní} varianty. Souèasná aplikace doká¾e zobrazovat grafiku v reálném èase, av¹ak s pomìrnì omezeným mno¾stvím pixelù aktualizovaných v jednom kroku. Oproti~\cite{DWWL05}, kteøí tvrdí, ¾e doká¾í generovat a¾ $400\,000$ vzorkù za sekundu, jich tato aplikace zvládá okolo $110\,000$ pro základní \emph{bezsnímkovou} metodu a øízené vzorkování. Rekonstrukce celý proces výraznì zpomaluje, pøedev¹ím nutností poèítat nový, druhý vzorek pro aproximaci derivací. V tomto pøípadì je aplikace schopna zvládat aktualizovat $60\,000$ vzorkù za vteøinu.
+
+Dal¹ím aspektem pro kvalitu zobrazení je velikost rastru, do kterého jsou pixely ukládány. Pøijatelné výsledky jsou pro rozli¹ení $256 \times 256$, stejnì jako tomu bylo i v~\cite{DWWL05}. Pro vìt¹í rozli¹ení by bylo nutné aktualizovat více pixelù a jeliko¾ to není mo¾né, obraz pak trpí vìt¹ím výskytem artefaktù, pøípadnì je více rozmazán rekonstrukèním filtrem. Pøesto je mo¾né konstatovat, ¾e aplikace splòuje v¹echna kritéria stanovená pøed zapoèetím její implementace a na jednoduché scény je pou¾itelná i v praxi.
+
+
+\subsection{Mo¾ná roz¹íøení a vylep¹ení}
+\label{ssec:4_improvements}
+
+Jak ji¾ bylo øeèeno, implementace se zamìøila pouze na základní aspekty metody \emph{bezsnímkového renderování}. Proto je mo¾né pøedpokládat dal¹í vývoj a vylep¹ení aplikace novými poznatky a pøístupy. A jeliko¾ je i sama metoda \emph{bezsnímkového renderování} stále ponìkud opomíjena, je mo¾né oèekávat bouølivý vývoj i u ní. Nìkolik uva¾ovaných mo¾ných vylep¹ení je pøedstaveno zde. 
+
+
+\begin{description}
+
+	\item[Neuniformní dìlení obrazu:] tento pøístup byl implementován v~\cite{DWWL05} a byl diskutován v~\ref{ssec:3_tiling}. Vlastní pøínos pro øízené vzorkování by mohl spoèívat v lep¹ím a pøesnìj¹ím výbìru vzorkù. Aktuální výstup v souèasné implementaci trpí pøedev¹ím na rozhraní mezi dvìma sousedními oblastmi, kde jedna má velikou pravdìpodobnost výbìru (dochází v ní k nìjaké animaci) a naopak druhá má pravdìpodobnost malou. Pokud se animace pøesune právì do druhé oblasti, je vidìt \uv{zub} ve výstupu, nebo» druhá oblast je stále vzorkována pomaleji a obsahuje velké mno¾ství neplatných vzorkù. Pokud by v¹ak byly oblasti dìleny podle prostorových derivací, tedy v okolí hran by bylo dìlení jemnìj¹í, pravdìpodobnì by byly odstranìny znatelné pøechody mezi jednotlivými oblastmi. Jak ji¾ bylo øeèeno, problém tohoto pøístupu mù¾e spoèívat v neustálé aktualizaci rozdìlení obrazu na oblasti a tím i ve výrazném zpomalení celé aplikace.
+	
+	\item[Rekonstrukèní filtry:] v souèasné implementaci byly zvoleny pouze ty nejzákladnìj¹í filtry pro rekonstrukci, pøesnìji \emph{Gaussùv filtr}. Stejnì tak výpoèet rozmìrù a objemu filtru je znaènì zjednodu¹ený. Ostøej¹í grafický výstup a lep¹í zpùsob nakládání se stáøím vzorkù by bylo jistì mo¾né dosáhnout výbìrem a implementací slo¾itìj¹ích a sofistikovanìj¹ích filtrù. Pøesto jsou zvolené filtry plnì v souladu s dostupnými materiály a jsou implementovány stejnì nebo podobnì jako v~\cite{DWWL05} a~\cite{S06}.
+	
+	\item[Reprojekce vzorkù:] jedním z hlavních aspektù, které nebyly do implementace zaøazeny je \emph{reprojekce} a znovupou¾ití starých vzorkù podle nové pozice kamery ve scénì. Tento pøístup mù¾e v urèitých typech scén výraznì zlep¹it výstup rekonstruovaného obrazu (hlavnì pøi pohybu kamerou) a urychlit výpoèet samotný (zejména pokud je implementován na samostatné výpoèetní jednotce). \emph{Reprojekce} byla implementována v~\cite{DWWL05}. V této práci od ní bylo upu¹tìno zejména z dùvodu zachování rychlé èasové odezvy.
+	
+	\item[Rozdìlení na více výpoèetních jednotek:] velmi zajímavý nápad, který by mohl výraznì sní¾it odezvu aplikace a metodu pøiblí¾it k masovému vyu¾ití. Jedním faktorem zde mù¾e být paralelizace samotného výpoètu (napø. získání barvy vzorku z \emph{raytraceru}). Dále pak mù¾e jít o rozdìlení aplikace mezi rùzné výpoèetní jednotky, jako tomu je u rekonstrukce v~\cite{DWWL05}, která byla celá pøesunuta a implementována pomocí \emph{shaderù} na grafické kartì. Bohu¾el tento pøístup pøímo odporuje základní my¹lence \emph{bezsnímkového renderování} a bez nových technologií v oblasti zobrazovacích zaøízení ho nebude mo¾né legitimnì vyøe¹it.
+	
+	\item[Nové technologie v oblasti zobrazovacích zaøízení:] jak ji¾ bylo uvedeno v kapitole~\ref{chap:2_fr}, souèasná zobrazovací zaøízení nejsou schopna zobrazit výstup \emph{bezsnímkového rendereru} tak, jak byl navr¾en v~\cite{BFMZ94} a je nutné tento fakt obcházet rùznými zpùsoby. Na vhodných zobrazovacích zaøízeních by se jistì dalo vyu¾ít plného potenciálu \emph{bezsnímkové metody}. Jednou z mo¾ností jsou zaøízení pro zobrazování virtuální reality nebo \emph{HMD}. Dal¹í vyu¾ití lze pøedpokládat u velikých displejù, kde je klasický pøístup na vysokém rozli¹ení velmi neefektivní.
+	
+	\item[Aspekty zalo¾ené na vnímání:] tyto aspekty byly v rámci práce zcela ponechány stranou, pøesto¾e je nejvìt¹í potenciál této metody právì zde. Jak je uvedeno v~\cite{Z97a}  a v~\cite{Z97b} veliký pøínos metody le¾í právì v øízeném vzorkování, které upøednostòuje nìkteré oblasti v obraze. Stejnì se tomu dìje i na sítnici v lidském oku a proto by bylo mo¾né zohlednit výbìr oblastí právì podle tohoto faktoru. Ve spojení s novými technologiemi zobrazovacích zaøízení lze zcela logicky pøedpokládat, ¾e právì zde le¾í budoucnost \emph{bezsnímkové} metody, nebo» jak se ukazuje, v rámci klasických displejù, kde zcela dominuje vyu¾ití dvou bufferù, je její masové roz¹íøení a vyu¾ití prakticky nereálné.
+
+\end{description}

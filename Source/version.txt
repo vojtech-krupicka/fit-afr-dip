@@ -1,0 +1,6 @@
+HassaAFR Full - version 1.00 (revision r098, 2012-05-21)
+HassaAFR Demo - version 1.00 (revision r098, 2012-05-21)
+HassaAFR Simulator - version 1.00 (revision r098, 2012-05-21)
+HassaAFR Tester - version 1.00 (revision r098, 2012-05-21)
+Hem2Aff - version 0.01 (revision r001, 2011-12-31)
+Obj2Aff - version 0.01 (revision r001, 2011-12-31)

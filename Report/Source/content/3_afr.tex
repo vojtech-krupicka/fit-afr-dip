@@ -1,0 +1,412 @@
+%----------------------------------------------------------------------------
+% soubor: 3_afr.tex
+% autor: Vojtìch Krupièka, xkrupi06
+% datum: 04.01.2012
+%----------------------------------------------------------------------------
+
+\chapter{Adaptivní metoda}
+\label{chap:3_afr}
+
+Kapitola~\ref{chap:2_fr} se zamìøila na popsání a~pøedstavení metody \emph{bezsnímkového renderování} jako nového pøístupu, kterým lze provádìt zobrazování poèítaèové grafiky v~reálném èase. Pøesto, ¾e jsme limitováni souèasnými technologiemi (grafické karty a~zobrazovací zaøízení jsou navr¾eny pro zobrazování celého výstupu najednou pøepínáním mezi dvìma buffery), nemìlo by nyní èinit vìt¹í problémy implementovat vlastní \emph{renderer}, který bude \uv{\emph{bezsnímkový}}, napø. s~vyu¾itím  pseudokódu~\ref{alg:2_fr_extended}. Jak ale bylo uvedeno v~kapitole~\ref{chap:2_fr}, výstup bude obsahovat prostorový rozptyl v podobì artefaktù co¾ bude mít nepøíjemný vliv na jeho výslednou kvalitu.
+
+Pro zlep¹ení výstupu \emph{bezsnímkového} rendereru byla vyvinuta \emph{adaptivní} metoda, která byla poprvé popsána a~implementována v~\cite{DWWL05}. Na dal¹í implementaci pak lze narazit v~\cite{S06}. Tato kapitola se zamìøí na popis øízeného vzorkování a rekonstrukce obrazu, které pøedstavují její základní stavební bloky. Dále bude popsán samotný \emph{adaptivní} algoritmus, tak jak byl pøedstaven v~\cite{DWWL05} a budou diskutovány rùzné pøístupy návrhu a implementace z publikací uvedených vý¹e.
+
+
+\section{Návrh \emph{adaptivního} algoritmu}
+\label{sec:3_proposal}
+
+Podle definice metody \emph{bezsnímkového renderování}, tak jak byla popsána v~kapitole~\ref{chap:2_fr}, je nový vzorek, který se bude aktualizovat, vybírán náhodnì pøes celý rastr. To v¹ak mù¾e zpùsobit (a~také zpravidla zpùsobuje), ¾e se budou aktualizovat pixely, jejich¾ zmìna není nutná, napø. proto, ¾e daná oblast obrazu je v~nìjakém del¹ím èasovém intervalu statická. A~to na úkor jiné skupiny pixelù, kde právì probíhá nìjaká slo¾itá animace a~aktualizace by zde tudí¾ mìla probíhat èastìji. Prvním krokem pro zlep¹ení výstupu \emph{bezsnímkového rendereru} je upøednostnìní výbìru vzorkù z~oblasti obrazu tam, kde to má vìt¹í pøínos. Tento postup lze nazvat \emph{øízené vzorkování}\footnote{A angl. \emph{guided sampling}.} a~je jedním ze dvou hlavních principù, které byly pøedstaveny s~\emph{adaptivní} metodou v~\cite{DWWL05}.
+
+Druhým principem, který byl rovnì¾ pøedstaven v~\cite{DWWL05}, je \emph{rekonstrukce obrazu}. Bylo øeèeno, ¾e aktualizované pixely v~klasickém pojetí \emph{bezsnímkového renderování} jsou ihned zapisovány na výstup bez jakéhokoliv post-processingu. Ten je mo¾ný, je ale komplikovaný, jeliko¾ aktuální výstup obsahuje pixely rozprostøené nejen v~prostoru, ale i~v~èase. Aby bylo mo¾né provádìt rekonstrukci obrazu pomocí rekonstrukèních filtrù, je nutné brát v~úvahu právì takové filtry, které zohledòují jak prostorovou, tak i~èasovou doménu.
+
+Nyní je mo¾né promítnout nové poznatky do souèasného algoritmu pro klasický \emph{bezsnímkový renderer} (viz pseudokód~\ref{alg:2_fr_extended}) a~ten pøevést na jeho \emph{adaptivní} variantu. Nový algoritmus je nastínìn pomocí pseudokódu~\ref{alg:3_afr} a~roz¹iøuje pùvodní algoritmus na dvou místech. Na øádku~\ref{alg:ln4:3_afr} je nejprve vybrán pixel z~nìjaké oblasti (funkcí \texttt{získejPixelVDùle¾itéOblasti()}), která je v~aktuálním okam¾iku nìjak význaèná a~tedy dùle¾itìj¹í ne¾ ostatní oblasti obrazu. Následuje výpoèet barvy tohoto pixelu (napø. pomocí \emph{raytraceru}). Dal¹í zmìna oproti pùvodnímu algoritmu je na øádku~\ref{alg:ln6:3_afr}. \texttt{frameBuffer} není aktualizován pouze v~rámci daného pixelu, ale provádí se kompletní rekonstrukce obrazu po pøidání nové, právì spoèítané, barvy funkcí \texttt{rekonstruujObrazPøidáním()}.
+
+
+\begin{algorithm}[ht]
+alokuj pamì» pro \texttt{frameBuffer} o~rozmìrech $X \times Y$\;
+\ForEver{ \nllabel{alg:ln2:3_afr}
+	\While{není nutné pøekreslit displej}{ \nllabel{alg:ln3:3_afr}
+		($x$, $y$) $\leftarrow$ \texttt{získejPixelVDùle¾itéOblasti()}\; \nllabel{alg:ln4:3_afr}
+		\texttt{barva} $\leftarrow$ \texttt{spoèítejBarvuNa($x$, $y$)}\; \nllabel{alg:ln5:3_afr}
+		\texttt{frameBuffer} $\leftarrow$ \texttt{rekonstruujObrazPøidáním(barva)}\; \nllabel{alg:ln6:3_afr}
+	}
+	prohoï oba \emph{buffery} na grafické kartì a~zobraz aktuální\;
+} 
+\caption{Pseudokód pro \emph{adaptivní bezsnímkové renderování}, roz¹iøující algoritmus~\ref{alg:2_fr_extended}.}
+\label{alg:3_afr}
+\end{algorithm}
+
+
+V~\cite{DWWL05} navrhují strukturu \emph{adaptivního} algoritmu rozdìlit do dvou nezávislých èástí, kde první, \emph{vzorkovaè}, se stará o~výbìr vhodného vzorku ze správné oblasti (funkce \texttt{získej\-Pixel\-V\-Dùle¾ité\-Oblasti()} z~algoritmu~\ref{alg:3_afr}) a~o výpoèet jeho nové hodnoty. Druhá komponenta pak provádí rekonstrukci výsledného obrazu (funkce \texttt{rekonstruuj\-Obraz\-Pøidáním()}). Celý systém \emph{adaptivního rendereru} je nastínìn na obrázku~\ref{fig:3_afr_components}.
+
+
+\begin{description}
+	\item[Vzorkovaè (z~angl. \emph{sampler})] obsahuje øídící jednotku (\emph{øadiè}), \emph{raytracer}, pro výpoèet barev nových pixelù, a~pomocný \emph{deep buffer} pro ukládání, správu a~výbìr vhodných oblastí obrazu. Vzorkovaè se sna¾í zvý¹it vzorkovací frekvenci v~tìch oblastech obrazu, kde dochází k~rozsáhlým zmìnám v~rámci prostoru a~èasu. Toho je dosa¾eno rozdìlením celého rastru do men¹ích oblastí, kde nìkteré oblasti jsou upøednostòovány pøed ostatními. Díky tomu je mo¾né vybírat ty vzorky, které mají pro celý obraz vìt¹í pøínos.
+	
+	\item[Rekonstruktor] se na druhou stranu stará o~rekonstrukci obrazu ze v¹ech vzorkù ulo¾ených v~jeho vlastním \emph{deep bufferu}. Pokud je scéna statická, doká¾e poskytnout relativnì kvalitní výstup bez aliasù, pokud se scéna mìní, výsledky mohou být rozmazané, jsou ale poskytovány s~dostateènì nízkou odezvou. To je provádìno pomocí filtrù, které jsou udr¾ovány a~aplikovány v~\emph{bance adaptivních filtrù}. Po ka¾dém hotovém vzorku si rekonstruktor od vzorkovaèe vy¾ádá nový vzorek a~dal¹í pomocné informace a~proces je opakován.
+\end{description}
+
+
+\begin{figure}[pt]
+	\centering
+	\includegraphics[width=10cm]{./fig/afr_app.pdf}
+	\caption{Komponenty \emph{adaptivního bezsnímkového rendereru} a~tok dat mezi nimi tak, jak byl navr¾en a~popsán v~\cite{DWWL05} odkud byl pøevzat i~tento obrázek.}
+	\label{fig:3_afr_components}
+\end{figure}
+
+
+\section{Øízené vzorkování}
+\label{sec:3_guiding}
+
+Cílem \emph{bezsnímkového renderování} je aktualizovat pixely napøíè projekèním plátnem co nejvhodnìji. Tedy v~nìjakém náhodném poøadí, av¹ak tak, aby ¾ádný pixel nebyl aktualizován èastìji ne¾ ostatní, jinými slovy, aby pokrytí aktualizovaných pixelù bylo rovnomìrné a~to jak v~prostoru, tak i v~èase. Co kdy¾ ov¹em bude v~nìjaké konkrétní situaci nìjaká èást obrazu po del¹í dobu statická a~naopak jiná èást obrazu bude procházet nìjakou výraznou zmìnou? Klasickým pøístupem v~\emph{bezsnímkovém renderování} by byly pixely vybírány náhodnì, tedy zhruba stejnì ve statické i~dynamické oblasti plátna. To sice není úplnì ¹patné a~jistì to neodporuje ¾ádným definicím, výsledek na druhou stranu nebude úplnì ideální.
+
+Bylo by lep¹í výbìr nového vzorku napøíè obrazem ovlivnit tak, aby byl vybrán s~vìt¹í pravdìpodobností právì z~oblasti, kde dochází k~nìjaké vìt¹í zmìnì, ne¾ z~oblasti, kde je scéna statická. Tedy nìjakým vhodným zpùsobem øídit výbìr nového vzorku a~obraz rozdìlit do oblastí s~rùznou prioritou. Oblasti s~vy¹¹í prioritou by byly právì ty, kde dochází ke zmìnám a~byly by upøednostnìny pro výbìr nového vzorku.
+
+
+\subsection{Dìlení obrazu}
+\label{ssec:3_tiling}
+
+Dìlení obrazu\footnote{Dìlení obrazu vychází z~anglického \emph{tiling} a~jedna oblast obrazu se pak v~anglické literatuøe nazývá \emph{tile}. Pro úèely této práce budou pou¾ívány èeské ekvivalenty.} lze provádìt mnoha zpùsoby, av¹ak pro úèely této práce, jako¾ i~\emph{bezsnímkového renderování} bude dìlení obrazu, v~tomto pøípadì projektivní roviny, definováno následovnì: projektivní rovina $P_t$ o~rozmìrech $M \times N$ je rozdìleno v~èase $t$:
+
+
+\begin{equation}
+	P_t = \lbrace i(x, y, t_l) \vert (x, y) \in M \times N \rbrace,
+	\label{eq:3_image_plane}
+\end{equation}
+
+
+\noindent na $n$ disjunktních oblastí $U_{i, t} \subseteq P_t$: 
+
+
+\begin{equation}
+	P_t = \bigcup_{i = 1}^{n} U_{i, t} \quad \mathrm{kde} \quad U_{i, t} \cap U_{j, t} = \emptyset.
+	\label{eq:3_disjoint_regions}
+\end{equation}
+
+
+\noindent $i(x, y, t_l)$ znaèí barvu pixelu v~plátnì na pozici $(x, y)$ v~èase jeho poslední zmìny $t_l$. Aby bylo mo¾né celý obraz rozdìlit na disjunktní mno¾iny, tj. nepøekrývající se \emph{oblasti}, a~zároveò v¹emi oblastmi pokrýt v¹echny pixely obrazu, je rozumné definovat \emph{oblasti} jako ètvercové, resp. obdélníkové. K~této my¹lence pro dìlení projektivní roviny pøistupují i~v~\cite{DWWL05} a~v~\cite{S06} a~oblasti $U_{i, t}$ definují jako: 
+
+
+\begin{equation}
+	U_{i, t} = \lbrace i(x, y, t_l) \vert (x, y) \in A \rbrace,
+	\label{eq:3_image_regions}
+\end{equation}
+
+\noindent kde $A = (u, \ldots, u + m) \times (v, \ldots, v + n)$, $1 \leq u \leq M$, $1 \leq v \leq N$, $0 \leq m < M$, $0 \leq n < N$ a~tedy $u + m \leq M$ a~$v + n \leq N$. 
+
+Jeliko¾ byla \emph{oblast obrazu} definována i~v~èasové doménì (index $t$ u~ka¾dé oblasti $U_i$), bude nutné vyøe¹it problém, ve kterém okam¾iku vytvoøit, nebo dokonce zmìnit, uspoøádání jednotlivých \emph{oblastí} na projektivní rovinì. Jeliko¾ z~vý¹e uvedených rovnic nevyplývají ¾ádná omezení pro rozmìry oblastí, je mo¾né, aby se jednotlivé oblasti li¹ily v~èase svou velikostí a~tedy i~plochou. Dále lze pøedpokládat, ¾e ka¾dá \emph{oblast} ponese informaci o~tom, jak je aktuálnì významná, resp. pøedpokládejme, ¾e existuje funkce $h(U_{i, t})$, která bude aktuální \emph{prioritu} oblasti $U_{i, t}$ poskytovat. Její detailní popis bude následovat v~podkapitole~\ref{ssec:3_heuristic}. 
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[Stejná pravdìpodobnost, rùzná plocha]{\includegraphics[width=7cm]{./fig/tiling_prob.pdf} \label{fig:3_tiling-uniform_prob}}
+	\subfloat[Stejná plocha, rùzná pravdìpodobnost]{\includegraphics[width=7cm]{./fig/tiling_area.pdf} \label{fig:3_tiling-uniform_area}}
+	\caption{Dva zpùsoby dìlení obrazu na \emph{oblasti} diskutované v~této kapitole. V~\cite{DWWL05} je navrhováno dìlení obrazu na rùznì veliké oblasti, pøièem¾ v¹echny pak mají stejnou prioritu výbìru (obrázek~\ref{fig:3_tiling-uniform_prob}). Naproti tomu je v~\cite{S06} navr¾en opaèný pøístup demonstrovaný na obrázku~\ref{fig:3_tiling-uniform_area}. V¹echny \emph{oblasti} mají stejné rozmìry a~tedy i~plochu, ale rùznou pravdìpodobnost výbìru vzorku. V~tomto pøíkladu je více pravdìpodobné, ¾e pøí¹tí vzorek bude vybrán z~oblasti dole vpravo ne¾ z~oblasti nahoøe uprostøed.}
+	\label{fig:3_tiling}
+\end{figure}
+
+
+Pomocí rovnice~\eqref{eq:3_image_regions} je mo¾né obraz rozdìlit dvìma mo¾nými zpùsoby, tak jak to je nastínìno na obrázku~\ref{fig:3_tiling}. První zpùsob pøedpokládá rozdìlení obrazu na oblasti rùzných rozmìrù, kde v¹echny oblasti mají stejné ohodnocení (viz obrázek~\ref{fig:3_tiling-uniform_prob}). Naopak druhý zpùsob dìlí obraz na oblasti stejných rozmìrù, pøièem¾ jejich ohodnocení se mù¾e li¹it (viz obrázek~\ref{fig:3_tiling-uniform_area}). Oba zpùsoby pøiná¹ejí rùzné výhody a~nevýhody.
+
+První zpùsob je implementován v~\cite{DWWL05} a~má výhodu tu, ¾e \emph{oblast}, ze které se bude vybírat nový vzorek, je mo¾né vybrat náhodnì. Tedy pokud jsou v¹echny oblasti ulo¾eny napø. v~poli, lze vygenerovat náhodný index do tohoto pole a~jako vhodnou oblast zvolit právì tu, která na daném indexu le¾í. Vybráním oblasti se zmìní její ohodnocení a~jeliko¾ v¹echny oblasti musí mít ohodnocení stejné, je nutné obraz rozdìlit znovu. To je ale èasovì velmi nároèná operace, která bude mít pøímý dopad na odezvu celé aplikace (napø. v~\cite{DWWL05} to obcházejí tím, ¾e obraz dìlí po ka¾dých 25 zpracovaných vzorcích). Dal¹ím problémem, který pøiná¹í tento zpùsob, je zvolení ideální váhy pro v¹echny oblasti, tedy do jaké hloubky obraz dìlit. 
+
+
+\begin{figure}[pt]
+	\centering
+	\includegraphics[width=15cm]{./fig/tiling_tree.png}
+	\caption{Obrázek pøevzatý z~\cite{S06}, který ilustruje binární strom jako strukturu vhodnou pro hledání \emph{oblasti} $U_i$ z~ní¾ se bude vybírat nový vzorek pro aktualizaci podle obrázku~\ref{fig:3_tiling-uniform_area}. V~tomto pøíkladu je plátno rovnomìrnì rozdìleno na 16 oblastí, které jsou ulo¾eny v~listech stromu. Ka¾dý uzel $N_j$ udr¾uje sumu ohodnocení v¹ech svých pod-uzlù a~ta je propagována a¾ ke koøeni (viz levý sloupec). Strom zobrazený vpravo demonstruje výbìr oblasti $U_i$ podle náhodnì vygenerovaného èísla $r = 19$, které pomocí rovnice~\eqref{eq:3_delta_fn} postupnì prochází stromem od koøene k~listùm. Pokud je $r$ men¹í ne¾ ohodnocení levého pod-uzlu, je vybrána tato cesta, v~opaèném pøípadì je toto ohodnocení odeèteno od $r$ a~porovnáno s~pravým pod-uzlem. Výsledná cesta je znázornìna modøe.} 
+	\label{fig:3_tiling_tree}
+\end{figure}
+
+
+Druhý zpùsob je naopak preferován v~\cite{S06} a~funguje na principu rozdìlení obrazu na uniformní oblasti (napø. $8 \times 8$ oblastí). Jeliko¾ jsou rozmìry v¹ech oblastí stejné, je mo¾né obraz rozdìlit pouze jednou, ideálnì pøed zaèátkem bìhu aplikace. Díky tomu je mo¾né úplnì odstranit závislost jednotlivých oblastí $U_{i,t}$ na èase a nadále uva¾ovat oblasti pouze jako $U_i$. Nevýhodou mù¾e být na první pohled výbìr oblasti, jeliko¾ nyní není mo¾né oblast vybrat náhodnì, nebo» ka¾dá má jiné ohodnocení. V~\cite{S06} je navr¾ena struktura pro ulo¾ení oblastí v~binárním stromì, tak, ¾e v~listech jsou ulo¾eny samotné oblasti se svým ohodnocením (viz obrázek~\ref{fig:3_tiling_tree}). Ka¾dý uzel pak obsahuje sumu ohodnocení v¹ech svých potomkù, tedy ohodnocení $s_{N_j} = \sum_{c = 1}^{k} s_{N_c}$, kde $N_j$ je nìjaký uzel stromu, $k$ je poèet jeho potomkù a~$s_{N_c}$ je suma $c$-tého potomka uzlu $N_j$. Samotný výbìr oblasti pak lze implementovat napø. vygenerováním náhodného èísla $r$, které je v~rozsahu od 0 do sumy v¹ech ohodnocení (ohodnocení koøenového uzlu), tedy $r \in \langle 0, \sum_{i=1}^{n} h(U_i))$. Tato náhodná hodnota se pak nechá \uv{propadnout} stromem od koøene a¾ k~listùm. Pro tento úèel je v~\cite{S06} navr¾ena rekurzivní funkce $\delta$, která vrací uzel $N_b$ s~konkrétní oblastí $b = \delta(r, 1)$:
+
+
+\begin{equation}
+	\delta(r, c) = \left\{
+	\begin{array}{ll}
+		c & \mathrm{pokud} \quad r < s_{N_c} \quad \mathrm{nebo} \quad c = k, \\
+		\delta(r - s_{N_c}, c + 1) & \mathrm{jinak},
+	\end{array} \right.	
+	\label{eq:3_delta_fn}
+\end{equation}
+
+
+\noindent kde $c$ je index $c$-tého potomka uzlu $N_j$. Pokud je $b$ spoèítáno pro v¹echny uzly, lze spojit rovnici~\eqref{eq:3_delta_fn} s~výbìrem náhodného èísla $r$ a~sestrojit algoritmus $\tau$, který pøijímá náhodné èíslo $r$ a~koøenový uzel $N_r$ a~vrací index vybrané oblasti $i$:
+
+
+\begin{equation}
+	\tau(r, N_j) = \left\{
+	\begin{array}{ll}
+		i~& \mathrm{pokud} \quad N_j = U_i \quad \mathrm{je\ listem,} \\
+		\tau(r - \sum_{c = 1}^{b - 1} s_{N_c}, N_b) & \mathrm{jinak}.
+	\end{array} \right.	
+	\label{eq:3_tau_fn}
+\end{equation}
+
+
+Aèkoliv se mù¾e zdát tento pøístup na první pohled komplikovaný, nabízí celkem intuitivní postup pro výbìr vhodné \emph{oblasti} a~co víc, pozice ani plocha oblastí se v~èase $t$ nemìní. Po výbìru nového vzorku v~nalezené oblasti je zmìna ohodnocení oblasti pomocí vý¹e zmínìné --- av¹ak zatím nedefinované --- funkce $h(U_i)$ velmi jednoduchá. Jeliko¾ v¹echny uzly nesou sumu ohodnocení svých potomkù, nové ohodnocení staèí propagovat od listu s~vybranou oblastí a¾ po koøenový uzel stromu. Tento druhý zpùsob dìlení obrazu se jeví jako efektivnìj¹í, jednodu¹¹í a~hlavnì rychlej¹í pro samotný bìh aplikace.
+
+Na závìr je nutné poznamenat, ¾e aplikací algoritmu $\tau$ z~\eqref{eq:3_tau_fn} není získán pøímo vzorek vhodný pro aktualizaci, ale pouze jedna konkrétní \emph{oblast}, ze které se bude nový vzorek teprve vybírat. Konkrétní pozici vzorku lze získat napø. náhodným výbìrem souøadnic $(x_r, y_r)$ (za pøedpokladu, ¾e jsou souøadnice vybírány z~intervalu $\langle 0, 1)$) nebo pomocí technik diskutovaných v~kapitole~\ref{sec:2_monte_carlo}. Novou pozici pak vynásobit relativní velikostí \emph{oblasti} $U_i$ a~tím získat hodnotu posunu $(\Delta x, \Delta y)$ od poèátku $(x_{U_i}, y_{U_i})$ oblasti $U_i$. Jejich souèet pak reprezentuje skuteènou pozici $(x, y)$ vzorku v rastru, který je nyní mo¾né aktualizovat.
+
+
+\subsection{Heuristika $h(U_i)$}
+\label{ssec:3_heuristic}
+
+Posledním krokem v~rámci \emph{øízeného vzorkování} je definovat váhovou funkci $h(U_i)$ její¾ existence byla nastínìna v~podkapitole~\ref{ssec:3_tiling}. Funkce $h(U_i)$ by mìla umìt rozhodnout, které oblasti obrazu $U_i$ mají být upøednostnìny pro výbìr nového vzorku pøed jinými. Zpùsobù, jak tuto funkci navrhnout a~implementovat je více, pro úèely této práce bylo vycházeno z~\cite{S06}, kde je funkce $h(U_i)$ definována jako druhá mocnina støední odchylky na mno¾inì hodnot $S_j$, tedy:
+
+
+\begin{equation}
+	\sigma_{n}^{2} = \dfrac{1}{n} \sum_{j = 1}^{n} (S_j - \overline{S})^2\mathrm{,} \quad \mathrm{kde}  \quad \overline{S} = \dfrac{1}{n} \sum_{j = 1}^{n} S_j.
+	\label{eq:3_sigma_fn_1a}
+\end{equation}
+
+
+\noindent Za pøedpokladu, ¾e $\sigma$ znaèí váhu \emph{oblasti} $U_i$, lze rovnici~\eqref{eq:3_sigma_fn_1a} pro pøípad \emph{bezsnímkového renderování} upravit do tvaru:
+
+
+\begin{equation}
+	\sigma^{2}(U_i) = \dfrac{1}{\vert A \vert} \sum_{(x, y) \in A} \left[i( x, y, t_l) - \overline{i} \right]^{2} \mathrm{,} \quad \mathrm{kde} \quad \overline{i} = \dfrac{1}{\vert A \vert} \sum_{(x, y) \in A} i(x, y, t_l).
+	\label{eq:3_sigma_fn_1b}
+\end{equation}
+
+
+Problém je, ¾e rovnice~\eqref{eq:3_sigma_fn_1b} se zabývá pouze \emph{statickým} signálem, co¾ je pro úèely \emph{bezsnímkového renderování} nedostaèující. Jeliko¾ je v¹ak mo¾né v~\emph{bezsnímkovém renderování} zpracovat pouze jeden vzorek v~konkrétním okam¾iku, je jasné, ¾e novìj¹í vzorky budou mít v¾dy vìt¹í pøínos pro urèení ohodnocení oblasti $U_i$ ne¾ ty star¹í. Proto je nutné do rovnice~\eqref{eq:3_sigma_fn_1b} pøidat váhovou funkci $\lambda$, která bude aplikována na ka¾dý vzorek $i(x, y, t_l)$ a~bude upravovat jeho hodnotu podle jeho èasového razítka $t_l$:
+
+
+\begin{equation}
+	\sigma^{2}(U_i) = \dfrac{1}{w} \sum_{(x, y) \in A} \lambda\left( i(x, y, t_l) \right) \cdot \left[ i(x, y, t_l) - \overline{i} \right]^{2}\mathrm{,}
+	\label{eq:3_sigma_fn_2}
+\end{equation}
+
+
+\noindent kde
+
+
+\begin{displaymath}
+	\overline{i} = \dfrac{1}{w} \sum_{(x, y) \in A} \lambda\left(i(x, y, t_l)\right) \cdot i(x, y, t_l) \quad \mathrm{a} \quad w = \left(\sum_{(x, y) \in A} \lambda\left(i(x, y, t_l)\right) \right)\mathrm{.}
+\end{displaymath}
+
+
+Bohu¾el i~pøi aplikaci rovnice~\eqref{eq:3_sigma_fn_2} mù¾e nastat problém. Pokud je nìjaká èást projektivní roviny del¹í dobu stejnorodá, tedy pokud obsahuje napøíklad jednu barvu, je mo¾né, aby $\sigma^{2}(U_i) = 0$. To by ale mìlo za následek, ¾e by tato oblast v~budoucnu ji¾ nikdy nebyla pro výbìr nového vzorku upøednostnìna. V~\cite{S06} je proto navr¾ena alternativa:
+
+
+\begin{equation}
+	\sigma'(U_i) = \left\{
+	\begin{array}{ll}
+		t_s & \mathrm{pokud} \quad \sigma^2(U_i) \leq t_s, \\
+		\sigma^2(U_i) & \mathrm{jinak},
+	\end{array} \right.	
+	\label{eq:3_sigma_fn_3}
+\end{equation}
+
+
+\noindent kde $t_s$ pøedstavuje vhodnì\footnote{Napø. v~\cite{S06} navrhují hodnotu $0{,}01$.} zvolený práh (tzv. \emph{starvation threshold}), jeho¾ hodnota je vrácena v~pøípadì, ¾e výsledek funkce $\sigma^2$ je men¹í ne¾ tento práh. To zajistí, ¾e ¾ádná oblast nebude mít nulovou pravdìpodobnost a~bude mo¾né ji nìkdy v~budoucnu znovu zvolit pro výbìr nového vzorku.
+
+
+Zbývá definovat funkci $\lambda$ z~rovnice~\eqref{eq:3_sigma_fn_2}. Jedná se o~váhovou funkci, která upraví hodnotu aktuálního vzorku podle jeho stáøí (viz vý¹e). Jak bylo øeèeno v~kapitole~\ref{sec:2_definition}, resp. jak je navr¾eno v~\cite{Z97a}, foto-receptory v~lidském oku jsou citlivìj¹í na nejnovìj¹í informace a~rychle se utlumují. Z~toho plyne, ¾e by bylo vhodné dávat nejvìt¹í váhu nejnovìj¹ím vzorkùm a~vzorky star¹í více ne¾ napø. pùl vteøiny by výbìr oblasti nemìly ovlivnit. Aby bylo mo¾né pøidìlit nejvìt¹í váhu nejmlad¹ím vzorkùm, je vhodné zvolit funkci $\lambda$ jako inverzní exponenciální funkci. V~\cite{DWWL05} definují funkci $\lambda$ jednodu¹e jako $\lambda = e^{-3,47a}$, kde $a$ pøedstavuje vzrùstající vìk vzorkù v~dané oblasti. V~\cite{S06} je pøístup podobný: 
+
+
+\begin{equation}
+	\lambda \left( i \left( x, y, t_l \right) \right) = e^{(t_l - t_a)/s},
+	\label{eq:3_lambda_fn}
+\end{equation}
+
+
+\noindent kde $t_a$ znaèí èas nejnovìj¹ího vzorku vybraného z~oblasti $U_i$ (tedy prakticky aktuální èas) a~$s$ je faktor, kterým lze ovlivòovat celkový pøínos váhové funkce $\lambda$. Jeliko¾ $t_l$ oznaèuje èas poslední aktualizace pixelu $(x, y)$, je jasné, ¾e v¾dy bude platit nerovnost $t_l - t_a \leq 0$ a~tedy i $\lambda(i(x, y, t_l)) \leq 1$. 
+
+Váhová funkce $\lambda$ pracuje s~barvou pixelu $(x, y)$ v~èase $t_l$. Barva je v~poèítaèové grafice zpravidla reprezentována pomocí tøí slo¾ek $R$, $G$ a~$B$. Zbývá tedy definovat pøevod barvy na jednu hodnotu -- \emph{prioritu oblasti}. Mo¾ností jak toho dosáhnout je více, napø. vzít prùmìrnou hodnotu ze v¹ech tøí komponent: $(R + G + B) / 3$. Jako výhodnìj¹í pøístup postaèí vyu¾ití informace o intenzitì barvy, tedy pøevedení dané barvy $i(x, y, t_l)$ do odstínù ¹edi pomocí rovnice:
+
+
+\begin{equation}
+	Y = 0{,}299 \cdot R + 0{,}587 \cdot G + 0{,}114 \cdot B.
+	\label{eq:3_yuv_grayscale}
+\end{equation}
+
+
+\subsection{Algoritmizace heuristiky $h(U_i)$}
+\label{ssec:3_heuristic_algorithm}
+
+Rovnice~\eqref{eq:3_sigma_fn_2} pro výpoèet pravdìpodobnosti pro výbìr oblasti $U_i$ dosahuje èasové slo¾itosti $\mathcal{O}(\vert A \vert)$, resp. $\mathcal{O}(m \cdot n)$ pøi dodr¾ení notace z rovnice~\eqref{eq:3_image_regions}, kde $m$ znaèí poèet pixelù pokrytých oblastí v horizontálním smìru a $n$ poèet pixelù ve vertikálním smìru. To samo o sobì pøedstavuje znaèné zpomalení aplikace a jeliko¾ je nutné volat funkci $\sigma'(U_i)$ po ka¾dém zpracovaném vzorku, bude zvý¹ení odezvy je¹tì umocnìno. Napø. pro rozli¹ení obrazu $256 \times 256$ a pro poèet oblastí $8 \times 8$ bude nutné v ka¾dém volání funkce $\sigma'(U_i)$ iterovat nad $1\,024$ pixely. A to jen pro zaji¹tìní správného výbìru oblasti v pøí¹tím kroku.
+
+Z toho dùvodu je v~\cite{S06} pøedstavena inkrementální verze rovnice~\eqref{eq:3_sigma_fn_2}, která sni¾uje èasovou slo¾itost a¾ na $\mathcal{O}(1)$. To pøiná¹í výrazné urychlení výpoètu pravdìpodobnosti a tím i celého øízeného vzorkování, které \emph{bezsnímkovou} metodu více nezatì¾uje. Pro sní¾ení èasové slo¾itosti je nutné nalézt inkrementální verze obou sèítancù a poèítat jejich odchylky mezi kroky $a$ a $a+1$. Nejprve je nutné vyjádøit oèekávanou hodnotu $\overline{i}_{a}$: 
+
+
+\begin{equation}
+	\overline{i}_{a} = \dfrac{1}{w_a}\sum_{l=1}^{a}e^{(t_l - t_a) / s} \cdot i_l
+	\mathrm{,} \quad \mathrm{kde} \quad
+	w_a = \sum_{l = 1}^{a}e^{(t_l - t_a)/s}
+	\mathrm{,}
+	\label{eq:3_pre_exp_val}
+\end{equation}
+
+
+\noindent kde $a = \vert A \vert$ a $i(x, y, t_l) = i_l$ (pro zjednodu¹ení). Do této rovnice byla zahrnuta i váhová funkce $\lambda$. Tímto zpùsobem je mo¾né pøièítat barvu ka¾dého nového vzorku z oblasti $U_i$ a vá¾it ji podle rozdílu v èase $t_a$ (váha v aktuálním èase) a èase $t_l$ (suma v¹ech vah). Klíèový krok je nyní spoèítat oèekávanou hodnotu $\overline{i}_{a+1}$, která závisí pouze na $\overline{i}_{a}$:
+
+
+\begin{equation}
+	\overline{i}_{a+1} = \dfrac{1}{1 + e^{(t_a - t_{a+1})/s} \cdot w_a} \left[ i_{a+1} + e^{(t_a - t_{a+1}) / s} \cdot w_a \cdot \overline{i}_a \right]
+	\mathrm{.}
+	\label{eq:3_exp_val}
+\end{equation}
+
+
+Pro samotný výpoèet je zapotøebí ukládat pouze poslední èas vzorku v dané oblasti $t_a$ a poslední celkovou váhu $w_a$. Obì hodnoty je nutné aktualizovat v¾dy po pøidání nového vzorku nastavením $t_a = t_{a+1}$ a $w_a = w_{a+1} = 1 + e^{(t_a - t_{a+1})/s} \cdot w_a$. Kromì oèekávané hodnoty $\overline{i}$ je nutné poèítat i druhou mocninu oèekávané hodnoty $\overline{i^2}$, kterou lze získat ve své inkrementální podobì obdobnì:
+
+
+\begin{equation}
+	\overline{i^2}_{a+1} = \dfrac{1}{1 + e^{(t_a - t_{a+1})/s} \cdot w_a} \left[ i^2_{a+1} + e^{(t_a - t_{a+1}) / s} \cdot w_a \cdot \overline{i^2}_a \right]
+	\mathrm{.}
+	\label{eq:3_sqr_exp_val}
+\end{equation}
+
+
+Výslednou hodnotu pravdìpodobnosti pro danou oblast $\sigma^2(U_{i, a+1})$, kde $a$ je poèet vzorkù v dané oblasti, lze poèítat z pøedchozí pravdìpodobnosti $\sigma^2(U_{i, a})$ podle:
+
+
+\begin{equation}
+	\sigma^2(U_{i, a+1}) = \overline{i^2}_{a+1} - \overline{i}_{a+1}
+	\mathrm{.}
+	\label{eq:3_final_heuristic}
+\end{equation}
+
+
+\section{Rekonstrukce obrazu}
+\label{sec:3_reconstruction}
+
+Druhou komponentou \emph{adaptivní} metody --- tak jak je popsána v~\cite{DWWL05} a~pøiblí¾ena v~kapitole~\ref{sec:3_proposal} --- je \emph{rekonstruktor}. Ten se, jak ji¾ z~názvu vyplývá, stará o~rekonstrukci obrazu, která je klíèovou souèástí v~\emph{adaptivním bezsnímkovém renderování}. Právì díky rekonstrukci obrazu vypadá výstup adaptivní metody lépe, ne¾ pøi pou¾ití pùvodního konceptu z~\cite{BFMZ94} (srovnání viz obrázek~\ref{fig:2_comparation}). Rekonstrukce obrazu je realizována pomocí \emph{rekonstrukèního filtru}. Av¹ak v~souvislosti s~\emph{bezsnímkovým renderováním} je nutné brát v~potaz nejen tøi dimenze --- dvì prostorové a~jednu èasovou --- ale dimenze ètyøi. Tou poslední je tzv. \emph{míra lokální vzorkovací hustoty}, která øíká, ¾e pokud je nìjaká \emph{oblast obrazu} vzorkována èastìji ne¾ jiné oblasti, vliv jednoho vzorku by mìl být men¹í ne¾ v~jiných oblastech, které jsou vybírány pro vzorkování zøídka. A~dále, pokud je nìjaký vzorek mlad¹í ne¾ ostatní vzorky v~nìjakém regionu, jeho hodnota bude mít vìt¹í vliv na hodnotu jeho star¹ích sousedù.
+
+V~této kapitole bude nastínìn výbìr vhodného \emph{rekonstrukèního filtru} $r$, rozbor jeho tvaru a~velikosti a~zvolení vhodné funkce, která filtr reprezentuje.
+
+
+\subsection{Urèení tvaru a~rozmìrù filtru}
+\label{ssec:3_filter_extents}
+
+Jak je ukázáno v~\cite{DWWL05} výbìr vhodného filtru pro \emph{adaptivní bezsnímkové renderování} není triviální zále¾itostí a~pøiná¹í sebou problémy, které vyplývají z~podstaty adaptivní metody. Je nutné specifikovat vlastnosti, které by mìl ideální filtr mít a~jejich adaptaci v~závislosti na zmìnì \emph{lokální vzorkovací hustoty}. V~\cite{DWWL05} navrhují, aby byl filtr:
+
+\begin{itemize}
+	\item ¹iroký v~prostorové doménì a~úzký v~èasové doménì pokud jsou zmìny v~nìjaké oblasti obrazu výrazné a~naopak, 	
+	\item aby byl úzký v~prostorové doménì a~¹iroký v~èasové doménì pokud je nìjaká oblast del¹í dobu statická. 
+\end{itemize}	
+	
+\noindent Tyto dva návrhy mají jistì své opodstatnìní: a)~pokud se oblast mìní dramaticky, je nutné zachovat co nejrychlej¹í odezvu i~za cenu hor¹í kvality výstupu. V~dùsledku pak jednotlivé vzorky rychleji stárnou. A~za b)~pokud je nìjaká oblast del¹í dobu statická, hodnota star¹ích vzorkù bude stále relevantní, tj. bude stále odrá¾et skuteènost. Jak je patrné, jde o~dva protipóly, které mohou nastat i~v~rámci jednoho obrázku. Proto není mo¾né zvolit jeden statický filtr, ale je nutné tvar a~rozmìry filtru pøizpùsobovat daným okolnostem prùbì¾nì.
+
+Vhodným kritériem pro pøizpùsobení filtru je vyu¾ití hodnoty gradientu v~dané oblasti. Jak je v~\cite{DWWL05} naznaèeno, vysoká hodnota \emph{prostorového} gradientu signalizuje pøítomnost skuteèné hrany v~obraze (hrana objektu apod.), naopak vysoká hodnota \emph{èasového} gradientu signalizuje pøítomnost doèasné hrany (stín, apod.). 
+
+Nech» je $f_I$ obrazovou funkcí. Jeliko¾ není nutné zachytit zmìnu gradientu ve v¹ech tøech dimenzích naráz, je v~\cite{S06} navrhnuto, aby výpoèet probíhal ve smìru osy $x$, $y$ a~$t$ oddìlenì. Hodnotu gradientu pak lze zjednodu¹it na absolutní hodnotu parciálních derivací v~pøíslu¹ných smìrech, tedy:
+
+
+\begin{equation}
+	d_x = \left| \dfrac{\partial f_I}{\partial x} \right| \mathrm{,} \quad
+	d_y = \left| \dfrac{\partial f_I}{\partial y} \right| \quad \mathrm{a} \quad
+	d_t = \left| \dfrac{\partial f_I}{\partial t} \right|
+	\label{eq:3_derivatives}
+\end{equation}
+
+
+\noindent a~tyto derivace pøevést na \uv{\emph{èasoprostorový}} objem $V_s$, který pokrývá prostor jednoho vzorku ve v¹ech tøech dimenzích. Objem $V_s$ v¹ak lze vyjádøit i~pomocí vzorkovací frekvence nìjaké konkrétní oblasti v~obraze, tedy \uv{\textit{kolik vzorkù je zapotøebí k~pokrytí urèitého prostoru v~èase}}. Nech» funkce $R(U_i)$ vrací poèet vzorkù na jeden pixel v~nìjakém èasovém intervalu pro nìjakou oblast $U_i$. Pokud vzorek $s$ patøí do oblasti $U_i$, objem $V_s$ lze definovat jako:
+
+
+\begin{equation}
+	V_s = \dfrac{1}{R(U_i)} \mathrm{.}
+	\label{eq:3_volume_s}
+\end{equation}
+
+
+Jak bylo øeèeno v~kapitole~\ref{ssec:3_tiling}, ka¾dá oblast obrazu $U_i$ pokrývá právì $m \times n$ pixelù, kde $1 \leq m \leq M$ a~$1 \leq n \leq N$. Pro získání poètu vzorkù, by tedy staèilo seèíst v¹echny vzorky v~$U_i$, které byly vypoèteny v~urèitém èasovém intervalu. Tento interval lze definovat jako $\langle t_h, t\rangle$, kde $t_h$ oznaèuje poslední èas, kdy byl vzorek platný a~$t$ èas aktuální. Jak ale zjistit poslední èas, kdy byl je¹tì vzorek platný? V~\cite{DWWL05} napø. uva¾ují poèet vzorkù za jednu vteøinu, tedy $t_h = t - 1000$. 
+
+Pokud $e_x$, $e_y$ a~$e_t$ znaèí rozsahy hledaného rekonstrukèního filtru $r$, v~\cite{DWWL05} je zaveden vztah mezi rozsahy a~derivacemi v~jednotlivých smìrech, kde $e_x d_x = e_y d_y = e_t d_t$ a~$V_s = e_x e_y e_t$. Samotné rozsahy jsou pak spoèítány oddìlenì:
+
+
+\begin{equation}
+	e_x = \sqrt[3]{\dfrac{V_{s} d_{y} d_{t}}{d_{x}^{2}}} \mathrm{,} \quad
+	e_y = \sqrt[3]{\dfrac{V_{s} d_{x} d_{t}}{d_{y}^{2}}} \quad \mathrm{a} \quad
+	e_t = \sqrt[3]{\dfrac{V_{s} d_{x} d_{y}}{d_{t}^{2}}} \mathrm{.}
+	\label{eq:3_extents_1a}
+\end{equation}
+
+
+V~\cite{DWWL05} tvrdí, ¾e rozsahy $e_x$, $e_y$ a~$e_t$ by mìly rovnomìrnì pokrývat zmìnu barvy v~ka¾dém smìru, zjednodu¹enì, ¾e rozsahy pøedstavují samotný objem $V_s$. To se sice jeví jako rozumný pøístup av¹ak, jak je poznamenáno v~\cite{S06}, vyvstává záva¾ný problém. Pokud nìjaká vzorkovaná oblast obsahuje napø. pouze jednu stejnou barvu, pak budou derivace $d_x$, $d_y$ a~$d_t$ nulové a~rozsahy --- $e_x$, $e_y$ a~$e_t$ --- budou smìøovat k nekoneènu. To v¹ak nejsou pøijatelné výsledky. Proto je v~\cite{S06} navr¾ena alternativní rovnice, která upravuje rovnici~\eqref{eq:3_extents_1a} následovnì:
+
+
+\begin{equation}
+	e_x = \dfrac{V_s \cdot (1 - d_x)}{d_c} \mathrm{,} \quad
+	e_y = \dfrac{V_s \cdot (1 - d_y)}{d_c} \quad \mathrm{a} \quad
+	e_t = \dfrac{V_s \cdot (1 - d_t)}{d_c} \mathrm{,}
+	\label{eq:3_extents_1b}
+\end{equation}
+
+
+\noindent kde $d_c = (1 - d_x) + (1 - d_y) + (1 - d_t)$. Aèkoliv je tento pøístup pøímoèarý, doká¾e se vypoøádat právì s~problémy, které zpùsobuje rovnice~\eqref{eq:3_extents_1a}. Pøesto existuje jeden pøípad, pro který i~rovnice~\eqref{eq:3_extents_1b} sel¾e. Pokud dochází k~rapidní zmìnì barvy z~bílé na èernou (nebo naopak), v¹echny derivace budou mít hodnotu $1$ (tedy $d_x = d_y = d_t = 1$), potom ale bude $d_c = 0$ a opìt budou v¹echny rozsahy smìøovat k nekoneènu. Jak je poznamenáno v~\cite{S06} jedná se o~specifický pøípad, který je nutné øe¹it samostatnì.
+
+
+\subsection{Výbìr vhodného filtru}
+\label{ssec:3_choosing_filter}
+
+Cílem \emph{adaptivní} metody je rekonstruovat obraz z~rùzných vzorkù. Tento pøístup je podobný tzv. \emph{rekonstrukci obrazu z~neuniformních vzorkù}\footnote{Více informací napø. viz~\cite{M87}.}. Jak je ale uvedeno v~\cite{DWWL05}, \emph{bezsnímkové renderování} tento problém roz¹iøuje o~tøetí èasovou doménu, která èiní celý proces komplikovanìj¹í. Proto je i~v~\cite{DWWL05} pøistoupeno k pou¾ití \emph{Gaussova filtru} a~obì domény jsou øe¹eny oddìlenì.
+
+Aby to v¹ak bylo mo¾né, je nejprve nutné rozdìlit rekonstrukèní filtr $r$ --- pøedstavený v úvodu této kapitoly --- na dvì samostatné komponenty: prostorový filtr $r_s$ a èasový filtr $r_t$. Oba filtry je pak ji¾ mo¾né definovat samostatnì. A jak bylo øeèeno, v~\cite{DWWL05} byl jako prostorový filtr pou¾it dvourozmìrný Gaussùv filtr. Ten má pøijatelné pásmové vlastnosti a~je snadno implementovatelný. Navíc je mo¾né vyu¾ít faktu, ¾e dvourozmìrný filtr lze implementovat slo¾ením dvou jednorozmìrných filtrù. Filtr $r_s$ pak lze definovat jako:
+
+
+\begin{equation}
+	r_s(\omega) = 
+		\dfrac{1}{2 \pi \sigma_x \sigma_y} \cdot 
+		e^{ -\frac{1}{2} \left( \left( \frac{\omega_x}{\sigma_x} \right)^2 + \left( \frac{\omega_y}{\sigma_y} \right)^2 \right) }
+		\mathrm{,}
+	\label{eq:3_spatial_filter_1a}
+\end{equation}
+
+
+\noindent kde $\sigma_x$, resp. $\sigma_y$, znaèí standardní odchylku v~$x$-ové, resp. $y$-ové, ose. Jak je patrné z~rovnice~\eqref{eq:3_spatial_filter_1a} filtr $r_s$ nerespektuje navr¾ené rozsahy $e_x$ a~$e_y$. Je tedy potøeba upravit jeho rozmìry. V~\cite{S06} je pro tento úèel vyu¾ito tzv. pravidla $3\sigma$, které øíká, ¾e $99{,}7\%$ plochy pod Gaussovou køivkou spadá do intervalu mezi $(-3\sigma_{x/y}, 3\sigma_{x/y})$. Pak je mo¾né nastavit $e_x = 3\sigma_x$ a~$e_y = 3\sigma_y$ a~rovnici~\eqref{eq:3_spatial_filter_1a} pøevést do tvaru:
+
+
+\begin{equation}
+	r_s(\omega) = 
+		\dfrac{9}{2 \pi e_x e_y} \cdot 
+		e^{ -\frac{9}{2} \left( \left( \frac{\omega_x}{e_x} \right)^2 + \left( \frac{\omega_y}{e_y} \right)^2 \right) }
+		\mathrm{.}
+	\label{eq:3_spatial_filter_1b}
+\end{equation}
+
+
+Rekonstrukèní filtr pro èasovou doménu $r_t$ je v~\cite{S06} implementován obdobnì, jako váhová funkce $\lambda$ pro urèení váhy \textit{oblasti} obrazu $U_i$:
+
+
+\begin{equation}
+	r_t(t_s) = 
+		e^{(t_s - t) / e_t s'}
+		\mathrm{,}
+	\label{eq:3_temp_filter}
+\end{equation}
+
+
+\noindent kde $t$ je aktuální èas, $t_s$ je èas poslední aktualizace pixelu $(x, y)$ a $s'$ je faktor, kterým je umìle upraven èasový rozsah filtru. Ten je v~\cite{S06} nastaven napevno na hodnotu $100$. Je v¹ak nutné poznamenat, ¾e by tato hodnota mìla být variabilní pro rùzné typy scén. Pøesto právì hodnota $100$ dávala nejlep¹í výsledky pro vìt¹inu scén (viz \cite{S06}).
+
+
+\subsection{Rekonstrukèní algoritmus}
+\label{ssec:3_reconstruction_alg}
+
+Pro rekonstrukci byl zvolen pøístup zvaný \emph{scatter}, implementovaný v~\cite{DWWL05}. Ten propaguje novou barvu vzorku jeho sousedùm. Prostorový filtr $r_s$ vá¾í novou barvu vzorku podle jeho vzdálenosti od støedu rekonstruovaných pixelù, které le¾í v nejbli¾¹ím okolí vzorku daného rozmìry filtru $e_x$ a $e_y$. Váha barvy vzorku pak klesá s jeho vzdáleností od právì rekonstruovaného pixelu. Èasový filtr $r_t$ vá¾í pùvodní barvu rekonstruovaného pixelu podle jeho stáøí a váha pùvodní barvy klesá se zvy¹ujícím se vìkem daného pixelu.
+
+Aby byla rekonstrukce co nejefektivnìj¹í, byla vyu¾ita rovnice z~\cite{S06}, která oba filtry spojuje dohromady a vá¾ení je provádìno inkrementálnì:
+
+
+\begin{small}
+\begin{equation}	
+i(x_k, y_k, t) = \dfrac{1}{w} \left( \dfrac{9}{2 \pi e_x e_y} e^{ -\frac{9}{2} \left( \left( \frac{\omega_x}{e_x} \right)^2 + \left( \frac{\omega_y}{e_y} \right)^2 \right) } \cdot i(x, y, t) + e^{(t_s - t) / e_t s'} \cdot w_k \cdot i(x_k, y_k, t_k) \right)
+	\mathrm{,}
+	\label{eq:3_full_reconstruction}
+\end{equation}
+\end{small}
+
+
+\noindent kde $t_k$ oznaèuje poslední èas aktualizace pixelu $(x_k, y_k)$, $w_k$ oznaèuje poslední sumu vah obou filtrù a $w$ je nová suma vah pro pøí¹tí krok, která je vyèíslena podle rovnice:
+
+
+\begin{small}
+\begin{equation}
+	w = \dfrac{9}{2 \pi e_x e_y} e^{ -\frac{9}{2} \left( \left( \frac{\omega_x}{e_x} \right)^2 + \left( \frac{\omega_y}{e_y} \right)^2 \right) } + e^{(t_s - t) / e_t s'} \cdot w_k
+	\mathrm{.}
+	\label{eq:3_age_weight_sum}
+\end{equation}
+\end{small}

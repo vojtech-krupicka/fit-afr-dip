@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta http-equiv="cache-control" content="no-cache" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<meta name="author" content="Vojtěch Krupička, xkrupi06@stud.fit.vutbr.cz" />
+		<title>.: Bezsnímkové renderování | DIP 2012 | Nápověda :.</title>
+	
+		<style type="text/css">
+			* {margin:0;padding:0;}
+			body {margin:0; padding:0; background:#FFF; font-family:Verdana, Arial, sans-serif;
+						font-size: 12px;color:#000}
+			#container {margin:20px auto; padding:0; background:#FFF; width: 900px;color:#808080}
+			.menu 	  {margin: 10px 0;}
+			a         {color:#003365; text-decoration:underline}
+			a:hover   {color:#7F3F3C; text-decoration:none}
+			h1        {font-size:300%;color:#15356F;text-transform: uppercase;line-height:200%;position:relative;}
+			h1 a      {position:absolute;top:0;right:0;font-size:50%;line-height:400%;}
+			h2		  {font-size:200%;color:#15356F;border-top:1px #15356F solid;line-height:180%}
+			h3        {margin:20px 0 0 0;font-size:150%;color:#15356F;position:relative;line-height:200%}
+			h3 a      {position:absolute;top:0;right:0;font-size:50%;line-height:200%;}
+			h4        {margin:10px 0 0 0;line-height:150%;}
+			p         {text-indent:32px;font-size:98%;line-height:150%;text-align:justify;}
+			p:first-child	  {text-indent:0;}
+			ul, ol	  {margin:10px 16px;}
+			li		  {margin:0 16px;line-height:150%;}
+			table     {margin:10px auto; width:90%; height:auto; border-collapse:collapse; border:1px #808080 solid;color:#000}
+			tr        {height:20px;background:#FFF8DC;}
+			th        {padding:4px 6px; border:1px #808080 solid;}
+			td        {padding:4px 6px; border:1px #808080 solid;}
+			.head     {height:40px;background:#ADD8E6;color:#003365}
+			.parent   {background:#F0F8F0}
+			.even     {background:#DFE7CF}
+			.center   {text-align:center;}
+			.left 	  {text-align:left;}
+			.bold     {font-weight:bold;}
+			.italic   {font-style:italic;}
+			img 	  {display: block; margin: 10px auto;}
+			
+			dl		  {margin:16px;}
+			dt		  {margin:8px 0 0 0;line-height:150%;}
+			dd		  {margin:0 0 0 32px;line-height:150%;}
+			
+			fieldset  {margin:10px auto;padding:20px 20px; border:1px #808080 solid;background:#F0F8F0;color:#000}
+			legend    {font-weight:bold;}
+			label     {margin:0 20px 0 0}
+			form      {margin:0 auto 20px auto;}
+			div.code	{background: #F0F8F0; margin: 11px auto; width:86%; font-family: "Courier New"; padding: 10px 20px; border: 1px #808080 solid;}
+			span.code	{background: #F0F8F0; font-family: "Courier New"; padding: 1px 2px}
+			.report_ko  {color: #F00; border: 1px #F00 solid; background: #FFDEAD}
+			.report_ok  {color: #003365; border: 1px #003365 solid; background: #ADD8E6}
+			
+			.footer   {margin:20px auto; padding:20px 0; border-top:1px #808080 solid;text-align:center}
+		</style>
+	
+	</head>
+	<body>
+	
+		<div id="container">
+			<h1>Bezsnímkové Renderování <a href="../index.html" title="Zpět na hlavní stránku">&laquo; Zpět</a></h1>
+			<h2>Nápověda</h2>
+			
+			<div class="menu">
+				<a href="#overview" title="Přehled">Přehled</a> |
+				<a href="#install" title="Instalace">Instalace</a> |
+				<a href="#parameters" title="Spuštění">Spuštění</a> |
+				<a href="#controls" title="Ovládání">Ovládání</a>
+			</div>
+			
+			<h3 id="overview">Přehled <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Demonstrační aplikace se spouští jako konzolová aplikace a je konfigurovatelná pomocí parametrů příkazové řádky. Při jejím spuštění je nejprve provedena inicializace všech potřebných komponent (raytracer, vzorkovač, apod.) a následně zobrazeno <em>GLUT</em> okno pro vykreslování výstupu rendereru. Kromě základního nastavení je možné pomocí kláves měnit aktuální nastavení aplikace a přizpůsobovat její výstup podle aktuálních potřeb.</p> 
+			</div>
+			
+			<h3 id="install">Instalace <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Zdrojové kódy aplikace se nacházejí ve složce <span class="code">Source</span>. Zdrojové kódy jsou rozděleny na tři celky:</p>
+				<ul>
+					<li><span class="code">HassaAFR Simulator (afrSim.exe)</span> - simulátor, který byl použit při testování aplikace, simuluje ubíhající čas animace a je schopný generovat a aktualizovat nastavený počet vzorků v jednom časovém okamžiku. Jedná se o renderer s nulovou odezvou.</li>
+					<li><span class="code">HassaAFR Demo (afrDemo.exe)</span> - demonstrační aplikace, která umožňuje pokročilejší nastavení (např. výběr metody pro určení pozice vzorků, zobrazení pomocných bufferů, apod.). Umožňuje při běhu vypínat a zapínat řízené vzorkování a rekonstrukci obrazu.</li>
+					<li><span class="code">HassaAFR Full (afrFull.exe)</span> - finální aplikace, pro reálné použití. Používá nejlepší nastavení, které není možné měnit (<em>Haltonova</em> posloupnost, řízené vzorkování a rekonstrukci obrazu).</li>
+				</ul> 
+				<p>Aplikaci je možné zkompilovat pomocí přiložených <strong>Makefilů</strong>, které rekurzivně volají vnořené makefily v jednotlivých složkách. Instalace probíhá příkazem <span class="code">make</span>. Spustitelná aplikace je pak uložena ve složce <span class="code">bin</span>. Pro správné spuštění na OS Windows může být zapotřebí zkopírování přiložených dynamických knihoven ze složky <span class="code">dlls</span>.</p>
+				
+				<p>Příkaz <span class="code">make docs</span> vytvoří pomocí nástroje <strong>Doxygen</strong> programovou dokumentaci ve formátu HTML. Příkaz <span class="code">make clean</span> provede odstranění všech skompilovaných částí včetně dokumentace. Seznam všech příkazů pro instalaci:</p>
+				<ul>
+					<li><span class="code">make|make install</span> - zkompiluje všechny tři aplikace do samostatných spustitelných souborů,</li>
+					<li><span class="code">make sim</span> - zkompiluje pouze simulátor,</li>
+					<li><span class="code">make demo</span> - zkompiluje pouze demonstrační aplikaci,</li>
+					<li><span class="code">make full</span> - zkompiluje plnou verzi aplikace,</li>
+					<li><span class="code">make docs</span> - vytvoří pouze programovou dokumentaci ve složce <span class="code">./trunk/html</span>,</li>
+					<li><span class="code">make clean|make uninstall</span> - odstraní všechny zkompilované soubory.</li>
+				</ul>
+			</div>
+			
+			<h3 id="parameters">Spuštění <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Samotné parametry příkazové řádky slouží k nastavení aplikace při jejím spuštění. Veškerá nastavení jsou volitelná a jediný povinný parametr je název souboru se scénou. Ostatní parametry příkazové řádky přesně odpovídají parametrům z konfiguračního <a href="../config/index.html#parameters" title="Konfigurační INI souboru"><span class="code">INI</span> souboru</a> a je nutné je zadávat bez mezer, jednotlivé parametry jsou pak odděleny mezerami. Tedy např.: <span class="code">redraw_mode=fixed redraw_fixed=4500</span>. Takto lze nastavit všechny potřebné parametry.</p>
+				
+				<p>Aby bylo zadávání parametrů jednodušší, byl právě pro tento účel vytvořen <a href="../config/index.html" title="Konfigurační INI souboru"><span class="code">INI</span> soubor</a>, pomocí něhož lze celou aplikaci nakonfigurovat z jednoho místa. Pokud je tedy výhodnější konfigurovat aplikaci z <span class="code">INI</span> souboru, slouží pro tento účel přepínač <span class="code">-c INI_FILE</span>, kde <span class="code">INI_FILE</span> určuje cestu a název požadovaného konfiguračního souboru.</p>
+				
+				<p>Pokud je zadán přepínač <span class="code">-c</span>, je možné dodatečně nastavit jméno souboru s popisem scény ve formátu <span class="code">AFF</span>. K tomu slouží přepínač <span class="code">-s SCENE_FILE</span>, kde opět <span class="code">SCENE_FILE</span> udává cestu a název požadovaného souboru se scénou. Tento parametr je volitelný, ale jelikož je nastavení souboru s popisem scény povinné, je nutné aby byl obsažen alespoň v <span class="code">INI</span> souboru, jinak volání končí s chybou. Pokud je však zadán jak v <span class="code">INI</span> souboru tak i na příkazové řádce, ten z příkazové řádky má větší prioritu. Díky tomu je možné definovat univerzální konfigurační souboru s jedním nastavení a samotnou scénu volit až při spuštění aplikace.</p>
+				
+				<p>Poslední přepínačem příkazové řádky je přepínač <span class="code">-h</span>, resp. <span class="code">--help</span>, který zobrazí nápovědu. Všechny parametry jsou shrnuty níže:</p>
+				 
+				<dl>
+					<dt><span class="code">./afr -c config.ini</span></dt>
+					<dd>&raquo; spustí aplikaci s nastavením ze souboru <span class="code">config.ini</span>, který rovněž musí obsahovat definici souboru s popisem scény.</dd>
+					
+					<dt><span class="code">./afr -c config.ini -s scene.aff</span></dt>
+					<dd>&raquo; spustí aplikaci s nastavením ze souboru <span class="code">config.ini</span> a načte scény ze souboru <span class="code">scene.aff</span>. Pokud konfigurační souboru obsahuje parametr <span class="code">scene_file</span>, bude tento ignorován.</dd>
+					
+					<dt><span class="code">./afr -h</span></dt>
+					<dd>&raquo; zobrazí nápovědu podobnou této stránce.</dd>
+					
+					<dt><span class="code">./afr -s scene.aff</span></dt>
+					<dd>&raquo; použije se výchozí nastavení aplikace spolu se scénou <span class="code">scene.aff</span>.</dd>
+					
+					<dt><span class="code">./afr redraw_mode=fixed redraw_fixed=4500 scene_file=scene.aff</span></dt>
+					<dd>&raquo; použije se manuální nastavení z příkazové řádky spolu se scénou <span class="code">scene.aff</span>.</dd>
+				</dl>
+				
+			</div>	
+			
+			<h3 id="controls">Ovládání <a href="#container" title="Nahoru">nahoru</a></h3>		
+			<div>
+				<p></p> 
+				<ul>
+					<li><span class="code">F</span> - zapne/vypne zobrazení v celoobrazovkovém režimu,</li>
+					<li><span class="code">G</span> - zapne/vypne podporu řízeného vzorkování,</li>
+					<li><span class="code">R</span> - zapne/vypne podporu rekonstrukce,</li>
+					<li><span class="code">B</span> - zobrazí pomocný buffer (normální výstup, pravděpodobnost oblastí, všechny derivace, časová derivace),</li>
+					<li><span class="code">C</span> - pokud je povoleno uloží vybraný snímek do souboru,</li>
+					<li><span class="code">A</span> - zvýší hodnotu <a href="../config/index.html#aging_factor" title="aging_factor"><span class="code">aging_factoru</span></a> o 50,</li>
+					<li><span class="code">SHIFT+A</span> - sníží hodnotu <a href="../config/index.html#aging_factor" title="aging_factor"><span class="code">aging_factoru</span></a> o 50,</li>
+					<li><span class="code">S</span> - zvýší hodnotu <a href="../config/index.html#sigma_factor" title="sigma_factor"><span class="code">sigma_factoru</span></a> o 1,</li>
+					<li><span class="code">SHIFT+S</span> - sníží hodnotu <a href="../config/index.html#sigma_factor" title="sigma_factor"><span class="code">sigma_factoru</span></a> o 1,</li>
+					<li><span class="code">1</span> - nastaví náhodný výběr pozice vzorků,</li>
+					<li><span class="code">2</span> - pro výběr pozice vzorků použije <em>Haltonovu</em> posloupnost,</li>
+					<li><span class="code">3</span> - pro výběr pozice vzorků použije <em>Jittered</em> vzorkování,</li>
+					<li><span class="code">4</span> - pro výběr pozice vzorků použije <em>Multi jittered</em> vzorkování,</li>
+					<li><span class="code">5</span> - pro výběr pozice vzorků použije <em>Poissonovy</em> disky,</li>
+					<li><span class="code">6</span> - pro výběr pozice vzorků aplikuje problém <em>n</em> věží,</li>
+					<li><span class="code">SPACE</span> - spustí/pozastaví animaci,</li>
+					<li><span class="code">HOME</span> - nastaví animaci na začátek,</li>
+					<li><span class="code">END</span> - nastaví animaci na konec,</li>
+					<li><span class="code">PAGE_DOWN</span> - pozastaví animaci a přesune se na další snímek,</li>
+					<li><span class="code">PAGE_UP</span> - pozastaví animaci a přesune se na předchozí snímek,</li>
+					<li><span class="code">F1</span> - zobrazí nápovědu v konzoli,</li>
+					<li><span class="code">F2</span> - zobrazí/zkryje aktuální FPS v okně,</li>
+					<li><span class="code">F3</span> - zobrazí/zkryje aktuální informaci o čase animace v okně,</li>
+					<li><span class="code">Q|ESC</span> - ukončení aplikace.</li>
+				</ul>
+				
+			</div>
+			
+			<div class="footer">
+				Copyright &copy; 2012 <strong>Vojtěch Krupička</strong>, <a href="mailto:xkrupi06@stud.fit.vutbr.cz">xkrupi06@stud.fit.vutbr.cz</a>, all right reserved<br />
+				Fakulta informačních technologií VUT v Brně, Božetěchova 2, 612 66 Brno
+			</div>
+		</div>
+
+	</body>
+</html>

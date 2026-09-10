@@ -1,0 +1,318 @@
+%----------------------------------------------------------------------------
+% soubor: 4_app.tex
+% autor: Vojtìch Krupièka, xkrupi06
+% datum: 06.01.2012
+%----------------------------------------------------------------------------
+\chapter{Návrh implementace}
+\label{chap:4_app}
+
+Pro úèely této práce je souèasnì vyvíjena demonstraèní aplikace, která by mìla vhodným zpùsobem ukázat èinnost \emph{bezsnímkového renderování} v~praxi na nìkolika jednoduchých scénách. Aplikace je vyvíjena v~programovacím jazyce \texttt{C++} a~v~budoucnosti se pøedpokládá vyu¾ití grafické knihovny \emph{OpenGL}\footnote{Viz \url{http://www.opengl.org/}.} pro zobrazování výstupu \emph{bezsnímkového rendereru} v~reálném èase.
+
+Podkapitola~\ref{sec:4_types} popisuje vlastní knihovnu obsahující základní geometrické a~matematické datové typy jako vektory, matice, kvaterniony nebo práci s~barvami a~obrazem. Dal¹í èást, podkapitola~\ref{sec:4_scene}, je vìnována výbìru vhodného formátu souboru s~popisem scény, jeho naètení a~sestavení scény a~vytvoøení jejího grafu. Podkapitola~\ref{sec:4_raytracer} se vìnuje implementaci vlastního \emph{raytraceru}, který bude poèítat nové hodnoty aktualizovaných pixelù. Poslední èást, \ref{sec:4_future_work}, se pak zamìøuje na budoucí vývoj aplikace a~integraci vlastního \emph{bezsnímkového rendereru}.
+
+
+\section{Základní datové typy}
+\label{sec:4_types}
+
+Jak ji¾ bylo øeèeno, celá demonstraèní aplikace je implementována v~programovacím jazyce \texttt{C++}, zatím bez vyu¾ití cizích knihoven tøetích stran. Jeliko¾ je jazyk \texttt{C++} objektový, je veliký dùraz kladen na dodr¾ování zásad objektovì orientovaného programování a~na výhody, které z~nìho vyplývají. Tìmi se rozumí pøedev¹ím dìdiènost, pøetì¾ování metod a~operátorù, zapouzdøení a~znovu-pou¾itelnost kódu. Pøesto, ¾e re¾ie pro obsluhu objektù a~samotného objektového pøístupu je vy¹¹í ne¾ pøi pou¾ití klasických struktur a~prostého jazyka \texttt{C} a~tudí¾ je i~samotná aplikace o~nìco pomalej¹í, jsou tyto nevýhody ponechány stranou a~upøednostnìny výhody plynoucí z~OOP popsané vý¹e.
+
+
+\subsection{Geometrické datové typy}
+\label{ssec:4_basic_types}
+
+Proto¾e má aplikace demonstrovat pøedev¹ím zobrazování 3D grafiky a~v~jejím jádøe bude integrován \emph{raytracer} pro výpoèet nové barvy pixelu, bylo nutné se nejprve zamìøit na implementaci základních datových typù, bez kterých se ¾ádná taková aplikace neobejde. A~tìmi jsou pøedev¹ím vektory a~matice. 
+
+
+\subsubsection{Vektory a~body}
+\label{sssec:4_vectors}
+
+Jeliko¾ se pracuje výhradnì s~vektory --- a~pøípadnì body --- v~trojrozmìrném prostoru, byl návrh tìchto typù zredukován pouze na takové, jen¾ se budou vyu¾ívat. Proto vektor není implementován jako obecný, $n$-rozmìrný, ale místo toho byl implementován triptych tøíd pro dvou-, tøí- a~ètyø-prvkové vektory. První z~nich, implementován ve tøídì \texttt{Vector2}, najde vyu¾ití pøi práci s~dvourozmìrným plátnem nebo s~2D texturami. Pou¾ití trojrozmìrného vektoru \texttt{Vector3} je samozøejmostí pro definování vektorù a~bodù v~trojrozmìrném prostoru a~poslední, ètyø-prvkový vektor, implementovaný ve tøídì \texttt{Vector4}, je pomocný a~uplatnìní nachází tam, kde jsou potøeba skuteènì 4 prvky (napø. pøi definici rotace, kde první tøi prvky definují obecnou osu a~ètvrtý prvek úhel). Je nutné podotknout, ¾e vektorem se rozumí nejen smìrový vektor z~matematického hlediska, ale i~obyèejný bod v~prostoru. Pro jednoduchost byly oba typy slouèeny do jednoho.
+
+Pro zvý¹ení rychlosti, sní¾ení re¾ie s~alokací promìnných a~zlep¹ení pøístupnosti nejsou jednotlivé slo¾ky vektoru definovány jako samostatné promìnné, ale v¹echny slo¾ky jsou zabaleny do statického pole, kde a¾ index urèuje konkrétní slo¾ku v~dané ose ($x$-ová slo¾ka má index $0$ a~napø. $w$-tá slo¾ka pak index $3$). Pøesto, ¾e jazyk \texttt{C++} nabízí mo¾nost definovat tøídu jako ¹ablonu nad obecným datovým typem \texttt{T} (vektory by pak bylo mo¾né definovat jako celoèíselné, nebo s~plovoucí desetinou èárkou apod.), je tato funkènost minimalizována na pou¾ití datového typu \texttt{float} pro v¹echny slo¾ky vektoru. Nutno poznamenat, ¾e toto omezení je plnì dostaèující.
+
+V¹echny tøi tøídy implementující vektory obsahují metody pro základní operace, jako jsou skalární a~vektorový souèin (metody \texttt{Dot()} a~\texttt{Cross()}), získání délky vektoru a~vzdálenosti mezi dvìma body (metoda \texttt{Length()}) a~pøevod na tzv. \emph{jednotkový vektor} (metoda \texttt{Normalize()}). Dále jsou pøítomny pomocné metody slou¾ící pro výbìr slo¾ky, resp. indexu slo¾ky, s~minimální nebo maximální hodnotou (metody \texttt{MinComponent()} a~\texttt{MaxComponent()}, resp. \texttt{MinComponentIndex()} a~\texttt{MaxComponentIndex()}) nebo pomocné spøátelené funkce \texttt{Min()}, resp. \texttt{Max()}, které vytváøí nový vektor s~minimálními, resp. maximálními, hodnotami jednotlivých slo¾ek. Kromì metod byly implementovány a~pøetí¾eny i~operátory pro sèítání, násobení a~dìlení a~to jak vektoru vektorem tak i~konstantou. Dále operátory pro porovnání dvou vektorù, pøeètení vektoru ze vstupního proudu (\texttt{>>}), resp. poslání vektoru na výstupní proud (\texttt{<<}), a~operátor pro pøístup k~jednotlivým slo¾kám vektoru (\texttt{[]}).
+
+\subsubsection{Matice}
+\label{sssec:4_matrix}
+
+Dal¹ím základním datovým typem v~poèítaèové grafice jsou matice, které najdou své uplatnìní pøedev¹ím pøi práci s~transformacemi vektorù a~bodù v~prostoru. Proto byly matice implementovány (tøída \texttt{Matrix}) jako $16$-ti prvkové, tedy o~rozmìrech $4 \times 4$. Opìt je pou¾ito tentokrát dvourozmìrné statické pole $4 \times 4$ typu \texttt{float}. Matice nabízí standardní sadu operátorù pro sèítání, odèítání, násobení nebo dìlení a~to jak mezi dvìma maticemi, tak i~skalárem nebo nìkterým typem vektoru. Jedinou operací nad maticemi je prozatím její transpozice metodou \texttt{Transpose()}, která vrací novou instanci tøídy \texttt{Matrix}. 
+
+\subsubsection{Kvaterniony}
+\label{sssec:4_quats}
+
+Posledním základním datovým typem spojeným s~geometrií jsou \emph{kvaterniony}. Ty jsou pou¾ity pøi øe¹ení problémù s~transformacemi vektorù. Pøesnìji pøi rotacích okolo obecné osy v~prostoru, kde je pou¾ití kvaternionù výhodnìj¹í ne¾ násobení nìkolika transformaèních matic po sobì. Tøída \texttt{Quaternion} obsahuje ètyø-prvkové pole datového typu \texttt{float}. Kvaternion opìt obsahuje standardní operátory a~operace pro skalární souèin (metoda \texttt{Dot()}), získání délky a~úhlu (metody \texttt{Length()} a~\texttt{Angle()}) nebo získání inverzního kvaternionu (metody \texttt{Inverse()} a~\texttt{UnitInverse()}). Dále obsahuje 4 dùle¾ité metody, které jsou implementovány pøetí¾ením operátorù pro ètení z, resp. zápis do, datového proudu (\texttt{>>}, resp. \texttt{<<}), pro vytvoøení nového kvaternionu z~matice nebo vektoru, resp. pro vytvoøení matice nebo vektoru z~kvaternionu.
+
+
+
+\subsection{Barvy, obrázky a~pole}
+\label{ssec:4_color_image_array}
+
+
+\subsubsection{Barvy}
+\label{sssec:4_color}
+
+Dùle¾itou tøídou je tøída reprezentující barvu. Barva je v~aktuální implementaci implementována jako klasický tøí-slo¾kový RGB vektor ve tøídì \texttt{ColorRGB}. Slo¾ky jsou opìt ulo¾eny ve statickém poli typu \texttt{float} a~jsou pouze tøi. Jedna pro èervenou, druhá pro zelenou a~tøetí pro modrou barvu. Rozsah slo¾ek se pøedpokládá v~intervalu $\langle 0{,}0; 1{,}0\rangle$, je ale mo¾né zvolit rozsah libovolný a~pøípadnì ho upravit pomocí metody \texttt{Clamp()}. Druhou metodou (metoda \texttt{Grayscale()}) barvy je její pøevod do odstínù ¹edi pomocí ji¾ zmínìné rovnice~\eqref{eq:3_yuv_grayscale}.
+
+Pro znovu-pou¾itelnost a~pøenositelnost kódu je v~souboru \texttt{Color.h} definován nový datový typ \texttt{Color} jako:
+
+\begin{center}
+	\texttt{typedef ColorRGB Color;}
+\end{center}
+
+\noindent který pouze pøejmenovává souèasnou implementaci barvy tøídou \texttt{ColorRGB}. Nový typ \texttt{Color} je pak pou¾íván v¹ude v~ostatním kódu a~díky tomu je mo¾né pøedefinováním tohoto typu zamìnit implementaci barvy za jinou (napø. barvu, která má i~ètvrtou slo¾ku, tzv. \emph{alfa}-kanál apod.) v~celé aplikaci zmìnou jediného øádku.
+
+
+\subsubsection{Obrázek}
+\label{sssec:4_image}
+
+Roz¹íøením datového typu \texttt{Color} do dvourozmìrného prostoru je obrázek implementovaný ve tøídì \texttt{Image}. Jeho tøídními atributy jsou rozmìry v~pixelech a~dvourozmìrné dynamické pole realizující rastr. Základní operací je nastavení, resp. získání, hodnoty na dané pozici v~rastru (metody \texttt{SetPixel()}, reps. \texttt{GetPixel()}). Pomocné operace nad obrázkem provedou jeho re-inicializace na výchozí barvu s~pøípadnou zmìnou rozmìrù (metoda \texttt{Clear()}), pøevod do stupòù ¹edi (metoda \texttt{Grayscale()}) a~gama korekci (metoda \texttt{GammaCorrection()}). 
+
+Obrázek je mo¾né naèíst ze, resp. ulo¾it do, souboru metodou \texttt{Load()}, resp. \texttt{Save()}. Obì metody volají statickou tøídu \texttt{ImageMapper} (její metodu \texttt{Read()}, resp. \texttt{Write()}), která se postará o~naètení, resp. ulo¾ení, obrázku v~pøíslu¹ném formátu. Ten je mo¾né explicitnì nastavit nebo je rozpoznán automaticky podle pøípony souboru. Prozatím je podporován pouze formát souboru \texttt{PPM}. Implementace je do budoucna pøipravena na roz¹íøení o~podporu dal¹ích formátù (\texttt{BMP}, \texttt{JPG}, \texttt{PNG}, apod.).
+
+\subsubsection{Pole}
+\label{sssec:4_array}
+
+Posledním dùle¾itým datovým typem je \emph{dynamické pole}. Namísto pou¾ití standardní kni\-ho\-vny \texttt{C++}\footnote{Tzv. \texttt{STL} z~angl. \emph{Standard Template Library}.} a~napø. typu \texttt{vector}, byl implementován vlastní datový typ \texttt{Array}, který je pouze ¹ablonou nad obecným datovým typem \texttt{T}. Jedná se o~klasické pole, které je mo¾né indexovat od $0$ do $n-1$, kde $n$ je poèet prvkù pole. Pro zvý¹ení rychlosti nejsou hlídány meze pole. Operace, které pole poskytuje jsou: pøidání nového prvku na konec pole (metoda \texttt{Add()}, která si v~pøípadì potøeby alokuje novou pamì»), metoda pro zji¹tìní, zda je pole prázdné (metoda \texttt{Empty()}), metoda pro zji¹tìní velikosti pole (metoda \texttt{Size()}) a~metoda \texttt{Clear()} pro vymazání obsahu pole a~uvolnìní pamìti.
+
+
+
+\subsection{Materiály a~textury}
+\label{ssec:4_materials_textures}
+
+
+\subsubsection{Materiály}
+\label{sssec:4_materials}
+
+Pro definování vlastností povrchu jednotlivých primitiv (viz kapitola~\ref{ssec:4_primitives}) slou¾í tøída \texttt{Material}. Ta si uchovává ve¹keré informace o~vlastnostech povrchu jako jsou barva difusních odleskù, barva zrcadlových odleskù nebo výchozí ambientní barva povrchu. Dále pak materiál obsahuje dal¹í pomocné vlastnosti pro úroveò odrazivosti povrchu, indexu lomu nebo refrakci materiálu, která je definována jako míra úbytku svìtla procházejícího objektem. Pro pohodlnost jsou definovány metody, které vrací pøíslu¹nou barvu s~ohledem na aktuální nastavení materiálu a~volitelnou pøítomnost textury. Jedná se o~triptych metod \texttt{GetDiffuseColor()}, \texttt{GetSpecularColor()} a~\texttt{GetRefractedColor()}.
+
+
+\subsubsection{Textury}
+\label{sssec:4_textures}
+
+Textury definují pøímou barvu povrchu bez ohledu na jeho vlastnosti. Zpravidla bývají tvoøeny obrázkem, který je naèten ze souboru nebo pomocí funkce (tzv. \emph{procedurální textury}), která definuje barvu v~bodì v~prostoru. V~souèasné implementaci jsou textury implementovány jako potomci tøídy \texttt{Texture}, která kromì unikátního názvu obsahuje dvì virtuální metody, \texttt{GetTexel()} pro získání barvy v~daném bodì a~\texttt{GetNormal()} pro získání normály v~daném bodì. 
+
+První tøídou, která dìdí od tøídy \texttt{Texture} je tøída \texttt{SolidTexture}, která, jak ji¾ její název napovídá, je tvoøena pouze jedinou barvou. Tato tøída je pouze doplòková a~není pou¾ívána. Druhá tøída \texttt{ImageTexture} je ji¾ pou¾ívána hojnì a~obsahuje soubor s~vlastní texturou -- obrázkem (tøída \texttt{Image}, viz~\ref{sssec:4_image}). Tato tøída v~sobì implementuje obì virtuální metody a~výbìr konkrétní barvy na dané pozici provádí pomocí tzv. \emph{bilineárního filtrování}\footnote{Více napø. viz \url{http://en.wikipedia.org/wiki/Bilinear\_filtering}.}. Obrázek se naèítá a¾ v~pøípadì potøeby, tedy v~okam¾iku, kdy je poprvé volána metoda \texttt{GetTexel()} a~naèítá se v¾dy jen jednou\footnote{Vyu¾ívá se tzv. \emph{lazy-loading}, více na \url{http://en.wikipedia.org/wiki/Lazy\_loading}.}. Pro lep¹í efekty je mo¾né definovat i~tzv. \emph{normálovou mapu}, která je opìt tvoøena obrázkem. Ten musí v~názvu obsahovat sufix \texttt{\_normal}. Pokud normálová mapa neexistuje, je ponechána pùvodní normála primitiva. Tato funkènost je v¹ak pouze experimentální a~pro vlastní \emph{bezsnímkový renderer} se její vyu¾ití nepøedpokládá. Procedurální textury nebyly prozatím implementovány, ale jejich implementace není vylouèena.
+
+
+
+\subsection{Základní primitiva a~ostatní objekty}
+\label{ssec:4_primitives}
+
+Ve scénì jsou kromì samotných základních objektù pro popis geometrie scény i~dal¹í pomocné objekty jako jsou kamera, svìtla nebo paprsky, které naleznou své uplatnìní pøi pou¾ití v~\emph{raytraceru}. Svìtlo je definováno pomocí struktury \texttt{TLight} a~obsahuje své jméno (pøi pou¾ití v~animacích, viz~\ref{ssec:4_animations}), barvu (pro výpoèet osvìtlení, viz~\ref{ssec:4_raytracing}, resp. rovnice~\eqref{eq:4_phong}) a~pozici v~prostoru. Prozatím byla implementována pouze bodová v¹esmìrová svìtla, jeliko¾ standardní \texttt{AFF} formát (viz kapitola~\ref{ssec:4_aff}) plo¹ná ani smìrová svìtla nepodporuje. 
+
+Paprsek je definován ve tøídì \texttt{Ray} a~obsahuje bod definující jeho poèátek v~prostoru a~vektor urèující jeho smìr. Hlavní metoda \texttt{PointAt()} vrací pozici v~prostoru le¾ící na paprsku podle zadaného parametru $t$:
+
+
+\begin{equation}
+	\mathrm{p}(t) = \mathrm{o} + t\mathrm{d}.
+	\label{eq:4_ray}
+\end{equation}
+
+
+Kamera implementovaná ve tøídì \texttt{Camera} simuluje funkcionalitu reálné kamery a~definuje pozici kamery v~prostoru, smìrový vektor pohledu kamery a~dal¹í pomocné atributy pro definici projekèního plátna, jeho reálných (v~jednotkách scény) a~imaginárních (v~pixelech) rozmìrù a~dal¹í. Dùle¾itou metodou kamery je metoda \texttt{Transform()}, která transformuje pozice v¹ech $4$ rohových bodù projekèního plátna v~prostoru a~kameru doká¾e natoèit novým smìrem nebo posunout na novou pozici.
+
+
+\subsubsection{Primitiva}
+\label{sssec:4_primitives}
+
+Pro definici vlastních objektù ve scénì byly napsány tøídy implementující jednotlivá primitiva. Základní tøída \texttt{Primitive} je abstraktní a~obsahuje ukazatel na materiál a~na texturu a~dále obsahuje 5 virtuálních metod o~jejich¾ implementaci se starají konkrétní tøídy jednotlivých typù geometrických objektù. Metoda \texttt{Hit()} poèítá prùseèík daného primitiva s~paprskem a~pokud prùseèík existuje, vrací vzdálenost mezi prùseèíkem a~poèátkem paprsku. Metoda \texttt{GetHitInfo()} slou¾í k~naplnìní struktury \texttt{THitInfo} potøebnými údaji o~nalezeném prùseèíku metodou \texttt{Hit()} (jeho pozici v~prostoru, normálu v~bodì prùseèíku, texturovací souøadnice, apod.). Tato funkènost byla rozdìlena do dvou metod pro urychlení výpoètu. Díky tomu je mo¾né volat metodu \texttt{GetHitInfo()} pouze jednou v~okam¾iku, kdy je skuteènì nalezeno nejbli¾¹í primitivum od poèátku paprsku $o$.
+
+Dal¹í virtuální metodou je metoda \texttt{GetBBox()}. Ta poèítá a~vrací tzv. \emph{bounding box} (obalové osovì zarovnané tìleso) okolo daného primitiva. Metoda \texttt{IntersectBBox()} provádí test, zda primitivum protíná nìjaký box v~prostoru, nebo v~nìm celé le¾í. Tìchto dvou metod se vyu¾ívá pøi konstrukci \emph{kd}-stromu (viz podkapitola~\ref{ssec:4_kd_tree}). Poslední metoda \texttt{Transform()} se stará o~transformaci primitiva ve scénì podle zadané transformaèní matice pøi sestavování scény nebo pøi animacích. Více o~transformaci primitiv v~podkapitole~\ref{ssec:4_scene}.
+
+V~souèasné implementaci jsou zastoupeny primitiva: 
+
+
+\begin{itemize}
+
+	\item \emph{trojúhelník} (tøída \texttt{Triangle}) jako základní primitivum pou¾ívané ve vìt¹inì 3D grafických aplikací,
+	\item \emph{koule} (tøída \texttt{Sphere}), 
+	\item \emph{válec} (tøída \texttt{Cylinder}), resp. \emph{jehlan} (tøída \texttt{Cone})
+	\item a~\emph{polygon}, který zastupuje obecný $n$-úhelník. Jeho implementace v¹ak není úplná a~prozatím je polygon rozdìlen na odpovídající poèet trojúhelníkù.
+	
+\end{itemize}
+
+
+\noindent Výèet primitiv nemusí být koneèný, av¹ak tyto typy jsou dostaèující a~reflektují entity, které je mo¾né popsat pomocí formátu \texttt{AFF} (viz podkapitola~\ref{ssec:4_aff}).
+
+
+\section{Sestavení scény}
+\label{sec:4_scene}
+
+Jednou z~nejdùle¾itìj¹ích èástí pøi vykreslování 3D poèítaèové grafiky je sestavení scény z~nìjakého jejího popisu --- typicky z~externího souboru --- a~její správa a~údr¾ba v~èasové doménì. Jeliko¾ je metoda \emph{bezsnímkového renderování} zamìøena pøedev¹ím na zobrazování grafiky v~reálném èase, bylo nutné vzít v~úvahu nejen statické prvky scény, ale i~prvky dynamické, které se mohou mìnit v~èase. Proto byl jako vhodný formát pro popis scény vybrán formát \texttt{AFF} (viz kapitola~\ref{ssec:4_aff}), který umo¾òuje parametricky definovat animace jak objektù, tak i~samotné kamery. Druhým klíèovým prvkem pøi sestavování scény je vytvoøení tzv. \emph{grafu scény}. Jeho konstrukce je blí¾e popsána v~kapitole~\ref{ssec:4_scene}.
+
+
+\subsection{Formát \texttt{AFF}}
+\label{ssec:4_aff}
+
+Jak ji¾ bylo øeèeno, pro úèely této práce, resp. pro úèely demonstraèní aplikace, byl zvolen popis scény ve formátu \texttt{AFF}\footnote{Z angl. \emph{Animated File Format}, definice na \url{http://www.ce.chalmers.se/BART/aff.html}.}. Tento formát vznikl v~roce 2000 jako roz¹íøení pùvodního formátu \texttt{NFF}\footnote{Z angl. \emph{Neutral File Format}.} pro úèely tzv. \emph{BART} (z~angl. \emph{A~Benchmark of Animated Ray Tracing}, viz~\cite{BART00}) a~jednou z~nejzásadnìj¹ích vìcí, o~které pùvodní \texttt{NFF} roz¹iøuje, je pøidání podpory animovaných sekvencí. 
+
+Formát \texttt{AFF} zachovává v¹echny entity z~pùvodního formátu \texttt{NFF}. Jedná se o~textový formát a~klade si za cíl popsat scénu co mo¾ná nejjednodu¹eji. Velikou výhodou, kterou pøiná¹í právì roz¹íøená verze, je mo¾nost libovolnì naèítat vnoøené \texttt{AFF} soubory pomocí klauzule \emph{include}. Pùvodní \texttt{NFF} soubor definuje tyto entity:
+
+\begin{itemize}
+	\item \texttt{v} -- definice kamery (pozice, smìr, rozli¹ení projekèní roviny v~pixelech, apod.),
+	\item \texttt{b} -- barva pozadí scény,
+	\item \texttt{l} -- pozice a~barva jednoho svìtla ve scénì,
+	\item \texttt{f} -- základní definice materiálu a~barvy povrchu objektu,
+	\item \texttt{c} -- popis primitiva typu \emph{válec} nebo \emph{jehlan},
+	\item \texttt{s} -- popis primitiva typu \emph{koule},
+	\item \texttt{p} -- popis primitiva typu \emph{polygon} (obecný $n$-úhelník),
+	\item \texttt{pp} -- popis polygonu, kde ka¾dý vrchol má definovánu vlastní normálu.
+\end{itemize}
+
+Formát \texttt{AFF} pøidává nové entity pro definici dal¹ích primitiv a~hlavnì pro mo¾nost tvorby animací. Tìmi nejdùle¾itìj¹ími jsou:
+
+
+\begin{itemize}
+	\item \texttt{i} -- název vnoøeného souboru s~popisem scény (\emph{include} klauzule),
+	\item \texttt{a} -- parametry animace (èas zaèátku a~konce animace, poèet klíèových snímkù),
+	\item \texttt{k} -- popis klíèových snímkù animace podle názvu (viz entita \texttt{x}),
+	\item \texttt{xs} -- entita popisující statickou transformaci v¹ech entit, které obsahuje,
+	\item \texttt{x} -- entita definující dynamickou transformaci (viz \texttt{k}) v¹ech entit, které obsahuje,
+	\item \texttt{tt} -- popis primitiva typu \emph{trojúhelník}, který má definovánu texturu,
+	\item \texttt{m} -- tzv. \emph{triangle mesh}, objekt tvoøený trojúhelníky, volitelnì s~normálovými vektory a~texturovacími souøadnicemi v~ka¾dém vrcholu.
+\end{itemize}
+
+Jak je vidìt z~výètù vý¹e, formát \texttt{AFF} je velmi jednoduchý a~obsahuje relativnì málo typù entit. Pøesto je mo¾né pomocí tohoto formátu popsat velmi komplexní scény, které mohou být animované (viz napø. scény \emph{Kitchen} nebo \emph{Robots} v~\cite{BART00}). 
+
+Parsování souboru s~popisem scény je implementováno ve tøídì \texttt{AffParser}, která ve svém konstruktoru pøijímá název \texttt{AFF} souboru a~instanci scény. Tu je nutné pøedat ji¾ pøi vytváøení objektu parseru, jeliko¾ je pøi vlastním parsování automaticky plnìna právì odtud. Hlavní veøejná metoda \texttt{Parse()} se pak postará o~parsování celého vstupního souboru s~popisem scény. To je rozdìleno do nìkolika privátních metod, kde se ka¾dá stará o~parsování urèité \texttt{AFF} entity a~poté pomocí \emph{API}\footnote{\emph{API} -- (angl. \emph{Application Programming Interface}) oznaèuje rozhraní pro programování aplikací. Jedná se o~sbírku procedur a~funkcí, které lze vyu¾ít mimo danou tøídu nebo knihovnu.} scény (viz podkapitola~\ref{ssec:4_scene}) je popis dané entity pøedán scénì.
+
+
+\subsection{Implementace scény a~graf scény}
+\label{ssec:4_scene}
+
+Tøída \texttt{Scene} implementuje celou scénu. Jedná se o~jeden z~nejdùle¾itìj¹ích objektù v~souèasné implementaci demonstraèní aplikace. Scéna je hlavním úlo¾i¹tìm pro v¹echny dal¹í potøebné objekty a~seznamy jako je vlastní geometrie scény (primitiva a~jejich materiály a~textury), nastavení scény (napø. kamera, svìtla, barva pozadí, úroveò ambientního osvìtlení, apod.), správce animací (viz podkapitola~\ref{ssec:4_animations}) a~dal¹í. 
+
+Tato tøída poskytuje dvì základní veøejné metody. Metoda \texttt{Create()} slou¾í pro konstrukci scény a~jejím jediným parametrem je název vstupního souboru s~popisem scény ve formátu \texttt{AFF} (viz podkapitola~\ref{ssec:4_aff}). Ten je parsován a~souèasnì je scéna sestavena pomocí API tøídy \texttt{Scene}. API tvoøí kolekci veøejných metod, kde ka¾dá metoda zpravidla odpovídá entitì v~\texttt{AFF} souboru. Její èinnost spoèívá v~nastavení atributù tøídy \texttt{Scene} nebo vytvoøení nových objektù (primitiv, materiálù, textur, uzlù grafu apod.) a~jejich pøidání do pøíslu¹ného seznamu. V¹echny tyto metody jsou volány z~parseru (tøída \texttt{AffParser}, viz~\ref{ssec:4_aff}). Druhou klíèovou metodou tøídy \texttt{Scene} je metoda \texttt{Destroy()}. Ta se postará o~zru¹ení v¹ech inicializovaných promìnných a~instancí tøíd, vyèi¹tìní v¹ech pou¾itých seznamù a~uklizení pamìti. Tuto metodu je mo¾né volat explicitnì nebo je volána automaticky v~destruktoru tøídy \texttt{Scene}\footnote{Pokud je scéna jednou vytvoøena, je nejprve nutné ji explicitnì zru¹it voláním metodou \texttt{Destroy()} a~a¾ poté je mo¾né znovu volat metodu \texttt{Create()}. Pøípadnì je nutné vyu¾ít dvou rùzných instancí tøídy \texttt{Scene}.}.
+
+Tøída \texttt{Scene} je implementována hlavnì jako "chytrá" obálka na data. Pøi jejím vytváøení, resp. pøi budování vlastní geometrie scény z~jednotlivých primitiv vzniká tzv. \emph{graf scény}\footnote{Ve své podstatì se jedná o~$n$-ární strom s~jedním hlavním koøenem.}, kde ka¾dý uzel grafu implementovaný tøídou \texttt{SceneNode} si uchovává seznam svých potomkù, seznam primitiv a~transformaèní matici. Celý graf pak udr¾uje informace o~pozicích a~transformacích jednotlivých primitiv v~jeho uzlech. Jak bylo uvedeno v~podkapitole~\ref{ssec:4_aff}, formát \texttt{AFF} nabízí mo¾nost definovat \emph{statickou} (entita \texttt{xs}) a~\emph{dynamickou} (entita \texttt{x}) transformaci, pøièem¾ jednotlivé transformace je mo¾né do sebe zanoøovat. Základní rozdíl mezi nimi je pak ten, ¾e \emph{statická} transformace má napevno zadány své parametry (posun, rotace a~zmìna mìøítka), kde¾to transformace \emph{dynamická} obsahuje ve své definici pouze jméno. To je pak svázáno s~entitou \texttt{k}, která popisuje transformace v~jednotlivých klíèových snímcích animace v~èase.
+
+K~tomu bylo nutné pøihlédnout i~pøi implementaci. \emph{Dynamický} uzel obsahuje svoje jméno, kde¾to uzel \emph{statický} má jméno prázdné. Kromì toho bylo nutné odli¹it i~oba typy uzlù v~rámci transformací. Zatímco u~statického uzlu je transformaèní matice známa ji¾ pøi sestavování scény (pøímo z~\texttt{AFF} souboru) a~je mo¾né ji uzlu nastavit, transformaèní matice dynamického uzlu je pøi konstrukci scény inicializována na matici identity\footnote{Matice identity je jednotkový prvek pro násobení matic}. Konkrétní transformaèní matice je dynamickému uzlu nastavena a¾ pøi vlastním bìhu animace, kdy je vypoèítána pro ka¾dý uzel zvlá¹» interpolací mezi dvìma klíèovými snímky pomocí tøídy \texttt{AnimationManager} (viz podkapitola~\ref{ssec:4_animations}). 
+
+Aby v¹ak transformace jednotlivých primitiv v~konkrétním uzlu probíhaly správnì, dochází k~výpoètu finální transformaèní matice pro daný uzel skládáním matic v~jednotlivých uzlech smìrem nahoru od daného uzlu ke koøenu. Touto maticí jsou následnì transformovány v¹echny primitiva, které uzel obsahuje (metoda \texttt{Transform()}, viz podkapitola~\ref{ssec:4_primitives}). Finální matici je nutné poèítaè v¾dy znovu pro ka¾dý \emph{statický} (pøi sestavování scény) i~\emph{dynamický} (pøi ka¾dém snímku animace) uzel.
+
+
+\subsection{Animace a~správce animací}
+\label{ssec:4_animations}
+
+Poslední èástí, která souvisí se scénou, resp. její geometrií, jsou animace. Animace (tøída \texttt{Animation}) jsou ve formátu \texttt{AFF} zadávány pomocí entity \texttt{k} a~jsou svázány unikátním jménem s~nìjakým dynamickým uzlem grafu scény (entita \texttt{x}). Entita \texttt{k} definuje celkem 4 druhy animací, pøesnìji øeèeno 4 druhy klíèových snímkù, kde ka¾dý snímek má nastaven konkrétní èas. Jedná se posun (\texttt{transl}), rotaci (\texttt{rotate}), zmìnu mìøítka (\texttt{scale}) a~viditelnost (\texttt{visibility}) daného dynamického uzlu. Pro v¹echny klíèové snímky jsou pøi sestavování scény vytvoøeny seznamy struktur \texttt{TPositionKey}, \texttt{TRotationKey} a~\texttt{TVisibilityKey}. Tyto seznamy jsou pak pøedány instanci tøídy \texttt{Animation}, která nad nimi provede pøíslu¹ný post-processing. Pro nalezení konkrétní transformaèní matice v~daném èasovém okam¾iku je provedena lineární interpolace mezi dvìma nejbli¾¹ími klíèovými snímky (podle èasu snímkù a~aktuálního èasu animace) a~spoèítána a~vrácena transformaèní matice (metoda \texttt{GetMatrix()} tøídy \texttt{Animation}). Tato matice je pak poslána do pøíslu¹ného dynamického uzlu grafu scény (uzel a~animace jsou svázány unikátním jménem) a~uzel se sám postará o~transformaci v¹ech primitiv, které obsahuje.
+
+Mo¾ných øe¹ení problému animací bylo více. Napø. ukládat konkrétní animace pøímo do dynamického uzlu. Jeliko¾ je animace scény volitelná a~scény mohou být pouze statické, byl zvolen pøístup, který implementuje tzv. \emph{správce animací} (tøída \texttt{Animation\-Manager}). Ten udr¾uje v¹echny animace ve scénì a~na po¾ádání vrací pøíslu¹né transformaèní matice. Dále pak si \emph{správce animací} uchovává informace o~aktuálním èase a~snímku animace a~dal¹í pomocné informace. Kromì toho poskytuje API pro øízení bìhu animace, jako je pøechod na dal¹í nebo pøedchozí snímek (metody \texttt{NextFrame()} a~\texttt{PrefFrame()}), pøechod na konkrétní èas nebo konkrétní snímek (metody \texttt{GotoTime()} a~\texttt{GotoFrame()}), pøechod na konec nebo zaèátek celé animace (metody \texttt{End()} a~\texttt{Reset()}) apod.
+
+
+\section{Implementace vlastního \emph{raytraceru}}
+\label{sec:4_raytracer}
+
+Hlavní komponentou celé aplikace pro demonstraci \emph{bezsnímkového renderování} je \emph{raytracer}. Ten se stará o~výpoèet barvy pixelù, které je nutné aktualizovat a~z~algoritmu~\ref{alg:2_fr_extended} vyplývá, ¾e právì tato operace je klíèová pro celkovou odezvu aplikace. Pøi implementaci vlastního \emph{raytraceru} --- který byl pøevzat z~døívìj¹ích vlastních projektù a~modifikován pro potøeby této práce --- bylo nutné se zamìøit na efektivitu výpoètu barvy a~oprostit se od v¹ech zbyteèných a~èasovì nároèných vylep¹ení. Proto byl implementován velmi jednoduchý a~relativnì rychlý \emph{raytracer}, který zvládá v¹echny základní operace (difuse, odrazy, lomy, textury, tvrdé stíny, apod). Implementace raytraceru byla ve velké míøe inspirována~\cite{SM03}.
+
+
+\subsection{Dìlení prostoru scény -- \emph{kd}-strom}
+\label{ssec:4_kd_tree}
+
+Pro zrychlení výpoètu barvy pomocí \emph{raytraceru} je nejprve nutné nalézt nejbli¾¹í primitvum od kamery. Jeho hledání mù¾e být realizováno mnoha zpùsoby. V~demonstraèní aplikaci byl zvolen tzv. \emph{kd}-strom. Ten byl navr¾en a~definována napø. v~\cite{HB02} nebo v~\cite{WH06}. Jedná se o~binární strom, který rekurzivnì dìlí $n$-ární prostor na dva podprostory podle jedné dìlící roviny. Ty jsou obaleny kvádry (osovì zarovnané boxy) a~spoleènì s~primitivy le¾ícími uvnitø ka¾dého boxu ulo¾eny v~jednotlivých uzlech \emph{kd}-stromu. Strom samotný je implementován ve tøídì \texttt{KdTree} a~jeho uzly ve tøídì \texttt{KdTreeNode}, která obsahuje hlavní metodu pro jeho konstrukci -- \texttt{Subdivide()}. Ta provádí rekurzivní dìlení ka¾dého uzlu na pod-uzly. Princip metody lze ve zkratce zapsat následujícími kroky:
+
+
+\begin{enumerate}
+	\item urèi dìlící rovinu, podle které se bude dìlit,
+	\item spoèítej v¹echny mo¾né pozice na dìlící rovinì podle okrajù v¹ech primitiv le¾ících v~uzlu,
+	\item pro ka¾dou pozici na dìlící rovinì vytvoø dva boxy a~pro ka¾dý z~nich spoèítej celkový poèet primitiv, které v~daném boxu le¾í,
+	\item podle poètu primitiv spoèítej cenu pro ka¾dé rozdìlení (viz heuristika~\eqref{eq:4_sah}) a~urèi nejlep¹í cenu a~dìlící pozici
+	\item a~pokud je nejlep¹í cena vy¹¹í ne¾ minimální práh\footnote{Poèet primitiv v~nadøazeném uzlu.}, rozdìl uzel podle dìlící pozice s~nejlep¹í cenou na dva pod-uzly, pøidej primitiva do pøíslu¹ného pod-uzlu podle jejich pozice v~prostoru a~oba pod-uzly rekurzivnì rozdìl.
+\end{enumerate}
+
+
+Cena $cost_{split}$ pro ka¾dou mo¾nou dìlící pozici je implementován heuristikou \emph{SAH}\footnote{Z angl. \emph{Surface Area Heuristic}.} definované napø. v~\cite{W04}. Hledání nejlep¹í ceny probíhá podle rovnice:
+
+
+\begin{equation}
+	cost_{split}(V_L, N_L, V_R, N_R) = C_{trav} + P(B_L \vert V) \cdot N_L + P(B_R \vert V) \cdot N_R\mathrm{,}
+	\label{eq:4_sah}
+\end{equation}
+
+
+\noindent kde $N_L$, resp. $N_R$, je poèet primitiv le¾ících v~levém boxu $B_L$, resp. v~pravém boxu $B_R$, a~$C_{trav}$ vhodnì zvolená konstanta. Pøi dìlení boxu $B$ na dva pod-boxy $B_L$ a~$B_R$ je nejprve nutné urèit pravdìpodobnost $P(B_n \vert V)$ udávající, zda paprsek pøi prùchodu stromu nav¹tíví daný box. Pravdìpodobnost lze spoèítat podle rovnice:
+
+
+\begin{equation}
+	P(B_L \vert B) = \dfrac{SA(B_L)}{SA(B)} \quad \mathrm{a} \quad P(B_R \vert B) = \dfrac{SA(B_R)}{SA(B)} \mathrm{,}
+	\label{eq:4_sah_prob}
+\end{equation}
+
+
+\noindent kde $SA(B) = 2(B_xB_y + B_xB_z + B_yB_z)$ urèuje plochu boxu $B$ s~rozmìry $B_x$, $B_y$ a~$B_z$ v~jednotlivých osách. Pro rozdìlení jednoho uzlu je proces volán rekurzivnì na oba pod-uzly. Koncovou hloubku rekurze, resp. vý¹ku výsledného \emph{kd}-stromu, je mo¾né explicitnì specifikovat nebo nastavit automaticky podle následující rovnice:
+
+
+\begin{equation}
+	depth = \log_2 prim_{count} \mathrm{,}
+	\label{eq:4_kd_depth}
+\end{equation}
+
+
+\noindent kde $prim_{count}$ znaèí celkový poèet primitiv ve scénì. S~vyu¾itím logaritmu o~základu 2 bude hloubka stromu i~pro veliká èísla relativnì malá\footnote{Pro $1\,048\,576$ primitiv ve scénì bude hloubka \emph{kd}-stromu $20$.}. 
+
+V~souèasné implementaci je bohu¾el konstrukce stromu èasovì velmi nároènou operací a~v~dal¹ím vývoji bude vìnováno patøièné úsilí pro její optimalizaci. Na druhou je nutné poznamenat, ¾e konstrukce \emph{kd}-stromu probíhá ihned po sestavení scény, tedy pøed spu¹tìním vlastního bìhu aplikace a~proto konstrukce stromu nebude mít ¾ádný vliv na vlastní èinnost \emph{besznímkového rendereru}.
+
+
+\subsection{Sledování paprsku a~výpoèet barvy pixelu}
+\label{ssec:4_raytracing}
+
+Samotný \emph{raytracer} je implementován ve tøídì \texttt{Raytracer} a~pro svùj bìh vy¾aduje instanci scény a~instanci \emph{kd}-stromu. Jeho èinnost je pak spu¹tìna metodou \texttt{Run()}, která provede výpoèet jednoho celého snímku podle aktuálních nastavení (kamera, snímek animace, apod.) a~ulo¾í ho do obrázku (tøída \texttt{Image}, viz~\ref{sssec:4_image}).
+
+Metoda \texttt{Run()} si nejprve ze scény získá informace o~kameøe, inicializuje pomocné promìnné pro prùchod pøes projekèní plátno v~obou smìrech (zleva doprava a~shora dolù) a~inicializuje instanci tøídy \texttt{Image} pro zápis vypoèítaných barev pixelù. Následnì je pro ka¾dý pixel vytvoøen paprsek, který je vyslán pøes projekèní plátno do scény metodou \texttt{Trace()}. Ta se nejprve pokusí nalézt primitivum le¾ící nejblí¾e k~projekènímu plátnu metodou \texttt{Hit()} a~pokud nìjaké existuje, spoèítá barvu v~místì dopadu. Metoda \texttt{Hit()} hledá primitivum nejblí¾e plátnu prùchodem \emph{kd}-stromu.
+
+Pokud není ¾ádné primitivum nalezeno, je vrácena barva pozadí scény. V~opaèném pøípadì dojde ke spoèítání finální barvy pixelu pomocí tøech metod: \texttt{Calc\-Shading()}, \texttt{Calc\-Reflection()} a~\texttt{Calc\-Refraction()}. První z~nich implementuje \emph{phongùv osvìtlovací model} podle rovnice: 
+
+
+\begin{equation}
+	I_p = k_a + 
+		\sum_{m \in L} \left( 
+			k_d \left( 
+				\vec{L}_m \cdot \vec{N} 
+			\right) 
+			+ k_s \left(
+				\vec{R}_m \cdot \vec{V}
+			\right)^{\alpha}
+		\right) \mathrm{,}
+	\label{eq:4_phong}
+\end{equation}
+
+
+\noindent kde $k_a$ je ambientní slo¾ka, $k_d$ difusní slo¾ka a~$k_s$ spekulární slo¾ka. $L$ pøedstavuje seznam v¹ech svìtel ve scénì a~$\vec{L}_m$ je pak vektor k~$m$-tému svìtlu, $\vec{N}$ je normála v~daném bodì a~$\alpha$ urèuje ostrost odleskù. $\vec{V}$ je vektor smìøující do kamery a~$\vec{R}_m$ je vektor odrazu:
+
+
+\begin{displaymath}
+	\vec{R}_m = 2(\vec{L}_m \cdot \vec{N})\vec{N} - \vec{L}_m \mathrm{.}
+\end{displaymath}
+
+\noindent Metoda \texttt{CalcShading()} vrací základní \emph{difusní} a~\emph{spekulární} barvu vèetnì její \emph{ambientní} slo¾ky podle konkrétního materiálu a~textury nalezeného primitiva. 
+
+Druhá metoda, \texttt{CalcReflection()} se postará o~výpoèet odrazù. To je provedeno pouze pokud to umo¾òují vlastnosti daného materiálu v~místì dopadu. Pokud ano, je vytvoøen nový, \emph{sekundární paprsek}, podle rovnice:
+
+
+\begin{equation}
+	\vec{R}_{refl} = \vec{D} - 2(\vec{D} \cdot \vec{N})\vec{N} \mathrm{,}
+	\label{eq:4_reflection}
+\end{equation}
+
+
+\noindent kde $\vec{D}$ je smìr pùvodního paprsku a~$\vec{N}$ normála v~bodì dopadu. Paprsek je rekurzivnì odra¾en do scény (opìt metodou \texttt{Trace()}) z~místa dopadu pùvodního paprsku a~proces se opakuje. Nakonec poslední metoda, \texttt{CalcRefraction()}, je volána, pokud je objekt v~místì dopadu prùhledný. Potom je paprsek zalomen podle rovnice:
+
+
+\begin{equation}
+	\vec{R}_{refr} = -\cos\theta_1 \vec{N} + \dfrac{n_2}{n_1}(\cos\theta_2 \vec{N} + \vec{R}_{dir}) \mathrm{,}
+	\label{eq:4_refraction}
+\end{equation}
+
+
+\noindent kde $\vec{N}$ je normála v~bodì dopadu, $\vec{R}_{dir}$ smìr pùvodního paprsku a~$n_1$ a~$n_2$ indexy lomu v~prvním a~ve druhém prostøedí. Paprsek je po zalomení opìt rekurzivnì poslán do scény, resp. dovnitø objektu, metodou \texttt{Trace()}. 
+
+Ka¾dá z~tìchto tøí metod vrací barvu. Výsledná barva pixelu je souètem v¹ech tøí pomocných barev a~je zapsána do výstupního obrázku, který je po výpoètu hodnot v¹ech pixelù ulo¾en do souboru. Kromì výpoètu jedné barvy pro ka¾dý pixel je mo¾né zvolit i~mo¾nost \emph{supersamplingu} (pro odstranìní aliasù v~obraze), který rozdìlí ka¾dý pixel na $n \times n$ èástí a~spoèítá celkem $n^2$ vzorkù najednou. Výsledná barva je poté prùmìrnou hodnotou ze v¹ech vzorkù. Pro rozdìlení pixelu na èásti a~výbìr jednotlivých vzorkù je pou¾ita metoda \emph{jittered} vzorkování, která je popsána v~\ref{ssec:2_jittered}.
+
+
+\section{Souèasný stav a~budoucí vývoj}
+\label{sec:4_future_work}
+
+Dosavadní èinnost na této práci spoèívala pøedev¹ím v~obecném seznámení se s~metodou \emph{bezsnímkového renderování} jako s~novým paradigmatem pro zobrazování poèítaèové grafiky v~reálném èase. Velká èást studia byla vìnována \emph{adaptivní} variantì této metody se zamìøením na \emph{dìlení obrazu} a~\emph{øízeného vzorkování} a~koneènou \emph{rekonstrukci} obrazu jako¾ i~výbìr nového vzorku vhodného pro aktualizaci. V¹echny doposud zkoumané oblasti byly analyzovány pouze po teoretické stránce a~jejich vlastní implementace a~problémy z~ní vyplývající budou podrobnì øe¹eny bìhem dal¹ího vývoje v~letní èásti tohoto projektu.
+
+Návrh a~vývoj demonstraèní aplikace se zamìøil pøedev¹ím na konstrukci scény ze vstupního souboru s~jejím popisem a~implementaci vlastního \emph{raytraceru}, který se bude starat o~výpoèet hodnot barev aktualizovaných pixelù. Scéna i~\emph{raytracer} jsou nyní plnì funkèní a~lze je vyu¾ít i~pro jiné projekty a~úèely. Pro vlastní demonstraèní aplikaci bude nutné provést nìkolik úprav a~to zejména v~souvislosti s~dìlením prostoru scény pomocí \emph{kd}-stromu, jeho¾ konstrukce je v~souèasné dobì neefektivní a~hlavnì bude nutné vyøe¹it problém spojený s~faktem, ¾e scéna obsahuje nejen statická primitiva (taková primitiva, která se po celý bìh aplikace nemìní), ale i~primitiva dynamická (primitiva, která jsou souèástí nìjaké animace, jsou obsa¾eny v~dynamických uzlech grafu scény, viz~\ref{ssec:4_scene}). Konstrukce \emph{kd}-stromu je nyní oddìlena od konstrukce scény, ale do budoucna  se pøedpokládá, ¾e bude pøidána pøímo do scény a~\emph{kd}-stromy se budou konstruovat dva. Jeden pro statická primitiva pouze jednou po vytvoøení scény a~druhý pro dynamická primitiva v¾dy pøi pøechodu na nový snímek animace.
+
+Hlavní èást budoucího vývoje bude vìnována vlastní aplikaci, která bude umìt demonstrovat funkcionalitu \emph{bezsnímkového renderování} na nìkolika testovacích scénách. Aby byla demonstrace plnohodnotná, pøedpokládá se, ¾e aplikace samotná bude schopna zobrazovat nejen animace, ale i~reagovat na u¾ivatelské vstupy (pohyb my¹i nebo vstupy z~klávesnice) a~bude mo¾né volit rozsáhlá nastavení, která pokryjí v¹echny mo¾nosti zobrazování v~"\emph{bezsnímkovém}" re¾imu (vèetnì \emph{adaptivní} varianty s~rekonstrukcí obrazu). Kromì toho se dále pøedpokládá provedení a~vyhodnocení testù demonstraèní aplikace se zamìøením na rychlost, kvalitu a~vìrohodnost zobrazení na rozdílných scénách.

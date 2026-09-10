@@ -67,3 +67,26 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+
+# ---------------------------------------------------------------------------
+# Repository publishing (portfolio) exclusions
+# ---------------------------------------------------------------------------
+
+# Demonstration videos (~465 MB; two files exceed GitHub's 100 MB limit).
+# Originally shipped only on the DVD attached to the printed thesis.
+Docs/Videos/
+
+# Generated Doxygen HTML — regenerate with `make docs`.
+Docs/Trunk/
+
+# Raw PPM result dumps under Docs/ and Report/ (~97 MB); PNG copies are kept.
+# Scene textures under Source/ (e.g. Source/scenes/earth.ppm) are required and kept.
+*.ppm
+!Source/**/*.ppm
+
+# Pre-built Windows binaries and bundled third-party DLLs.
+# Excluded to keep the repository source-only and avoid redistributing
+# GPL-licensed runtime libraries (cygwin1.dll, etc.). Build from source instead.
+afr-compiled.zip
+dlls.zip

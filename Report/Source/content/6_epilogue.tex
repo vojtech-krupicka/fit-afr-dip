@@ -1,0 +1,18 @@
+%----------------------------------------------------------------------------
+% soubor: 6_epilogue.tex
+% autor: Vojtìch Krupièka, xkrupi06
+% datum: 07.01.2012
+%----------------------------------------------------------------------------
+\chapter{Závìr}
+\label{chap:6_epilogue}
+
+Cílem této práce bylo nastudovat metodu \emph{bezsnímkového renderování} vèetnì její \emph{adaptivní} varianty a proniknout hloubìji do principù této metody. Pøesto, ¾e tato metoda byla navr¾ena pøed více ne¾ 17 lety (viz~\cite{BFMZ94}), jejímu vývoji a vìt¹ímu zkoumání se prozatím vìnovalo velmi málo pozornosti. Její studium bylo proto nároèné a prakticky jsem mohl vycházet pouze ze tøí publikací. V nejvìt¹í míøe z~\cite{Z96}, \cite{DWWL05} a~\cite{S06}. 
+
+Praktická èást práce se zamìøila na implementaci vlastní aplikace, která vhodným zpùsobem èinnost této metody demonstruje. Pro aplikaci byl implementován jednoduchý \emph{raytracer}, který se stará o výpoèet nové barvy aktualizovaných pixelù a ty poskytuje \emph{vzorkovaèi}. Raytracer byl navr¾en jako zcela nezávislá jednotka na zbytku aplikace a lze ho vyu¾ít i samostatnì u jiných projektù. Hlavním jádrem aplikace je pak \emph{vzorkovaè}, který se stará o vlastní \emph{bezsnímkové renderování}, tedy o výbìr pixelù vhodných k aktualizaci, tj. o øízené vzorkování, a následnou rekonstrukci obrazu.
+
+Pøi návrhu aplikace byla znaèná èást úsilí vìnována pøedev¹ím její efektivitì a kvalitì výstupu. Pøesto nebyly implementovány nìkteré pokroèilé metody pro rekonstrukci obrazu, které jsou nastínìny v kapitole~\ref{ssec:4_improvements}. Jeliko¾ byla snaha implementovat \uv{pravý} \emph{bezsnímkový renderer}, ve¹kerý kód byl ponechán v rámci jedné výpoèetní jednotky, fyzického procesoru poèítaèe. Tím samozøejmì byla sní¾ena celková odezva hlavnì v rámci rekonstrukce. 
+%Pøesto je mo¾né zobrazovat grafiku v pøijatelném èase a v pøijatelné kvalitì. 
+
+Kapitola~\ref{chap:2_fr} se zamìøila na srovnání metody \emph{bezsnímkového renderování} s tradièní metodou pro zobrazování 3D poèítaèové grafiky v reálném èase, která vyu¾ívá pøepínání mezi dvìma buffery. Dále se pak zabývala definováním metody samotné a faktorù podílejících se na kvalitì jejího výstupu, tak jak byla formálnì popsána v~\cite{Z96}. Kapitola~\ref{chap:3_afr} se poté vìnuje pøedev¹ím \emph{adaptivní} variantì, která byla pøedstavena v~\cite{DWWL05}. V kapitole jsou popsány v¹echny aspekty, kterými lze ovlivnit, resp. vylep¹it, výstup \emph{bezsnímkového rendereru} --- jako je øízené vzorkování s výbìrem vhodné oblasti obrazu a rekonstrukce obrazu. Kapitola rovnì¾ pøedstavuje matematické rovnice popisující problematiku spojenou s adaptivní variantou na teoretické úrovni.
+
+Kapitola~\ref{chap:4_app} se vìnuje vlastní implementaci demonstraèní aplikace, je¾ byla praktickou souèástí tohoto projektu v jeho letní èásti. Tato kapitola popisuje implementaci v¹ech jednotlivých souèástí výsledné aplikace, jako je popis a sestavení scény, implementace jednoduchého \emph{raytraceru}, a pak samotnou \emph{bezsnímkovou} metodu a v¹echny problémy, které je nutné pøi implementaci øe¹it. Na závìr diskutuje mo¾ný budoucí vývoj a vylep¹ení. Kapitola~\ref{chap:5_tests} pak diskutuje vizuální výsledky poøízené pøí testování a vyhodnocuje provedené testy na pøipravených testovacích scénách.

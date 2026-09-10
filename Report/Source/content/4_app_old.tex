@@ -1,0 +1,933 @@
+%----------------------------------------------------------------------------
+% soubor: 4_app.tex
+% autor: Vojtìch Krupièka, xkrupi06
+% datum: 06.01.2012
+%----------------------------------------------------------------------------
+\chapter{Implementace a testování}
+\label{chap:4_app}
+
+Pro úèely této práce byla souèasnì vyvíjena aplikace, jejím¾ cílem bylo vhodným zpùsobem demonstrovat èinnost \emph{bezsnímkového renderování} v praxi na nìkolika jednoduchých scénách. Kromì základní \emph{bezsnímkové metody} byl kladen dùraz i na demonstraci \emph{adaptivní varianty} a to jak øízeného vzorkování tak následné rekonstrukce obrazu. A to tak, aby bylo mo¾né jednotlivé èásti adaptivního algoritmu provádìt oddìlenì nebo v¹echny najednou. Tato kapitola popisuje implementaci demonstraèní aplikace a jejích jednotlivých èástí. Dále je pak vìnován prostor pro vyhodnocení testù a vizuálních výsledkù.
+
+Demonstraèní aplikace byla vyvíjena v programovacím jazyce \texttt{C++} s dùrazem na správné vyu¾ití zásad OPP a výhod z nich plynoucích. Pro zobrazování výstupu \emph{bezsnímkového rendereru} byl vyu¾ita knihovna \emph{OpenGL}\footnote{Viz \url{http://www.opengl.org/}.}. Pou¾ití dal¹ích knihoven a nástrojù bylo zva¾ováno, ale nakonec nepou¾ito.
+
+Celkový vývoj demonstraèní aplikace byl z èasových i studijních dùvodù rozdìlen na dvì èásti. Zimní èást se soustøedila na vlastní návrh aplikace a implementaci konstrukce a správy scény z externího souboru jako takové (viz podkapitola~\ref{sec:4_scene}) a na implementaci vlastního raytraceru (viz podkapitola~\ref{sec:4_raytracer}). Druhá, letní èást, se pak zamìøila na implementaci metody \emph{bezsnímkového renderování} (viz podkapitola~\ref{sec:4_basic_fr}) a její \emph{adaptivní varianty} (podkapitoly~\ref{sec:4_guiding_sampling} a~\ref{sec:4_reconstruction}).
+
+
+\section{Vytvoøení a správa scény}
+\label{sec:4_scene}
+
+Jak ji¾ bylo øeèeno, zimní èást práce se zamìøila na vytvoøení a spravování scény po celý bìh budoucí aplikace. Scéna jako taková patøí jistì k velmi dùle¾itým komponentám jakéhokoliv programu zobrazujícího poèítaèovou grafiku, a» u¾ jde o dvojrozmìrný nebo trojrozmìrný prostor (resp. ètyørozmìrný, jsou-li pøítomny i animace). Scéna bývá zpravidla sestavována ze svého popisu, který je typicky umístìn v externím souboru v pøedem specifikovaném formátu. Pro úèely této práce byl zvolen formát \texttt{AFF} (viz podkapitola~\ref{ssec:4_aff}). Pøi parsování popisu scény je nutné se zabývat sestavením tzv. \emph{grafu scény} a jeho údr¾bou bìhem animací. Konstrukci grafu scény popisuje podkapitola~\ref{ssec:4_scene} a jeho údr¾bu a systém animací pak podkapitola~\ref{ssec:4_animations}.
+
+
+\subsection{Formát \texttt{AFF}}
+\label{ssec:4_aff}
+
+Výbìr vhodného formátu pro popis scény je dùle¾itým krokem, který je nutné provést je¹tì pøed vlastní implementací, tedy pøi návrhu aplikace. Bylo nutné se zamyslet, co by v¹echno mìla aplikace splòovat a umo¾òovat. Kromì zobrazování základních primitiv, jako jsou trojúhelník, válec a koule a pøípadnì polygon, svìtel, materiálù a textur byl hlavní dùraz kladen na mo¾nosti animací ve scénì a to jak jednotlivých objektù tak i samotné kamery. Dal¹ím kritériem pro výbìr vhodného formátu pro popis scény byla jeho jednoduchost, tedy aby byl formát ideálnì textový a popis scény bylo mo¾né rychle vytvoøit nebo upravit v obyèejném textovém editoru. V neposlední øadì byl hledán takový formát, který je otevøený a volnì dostupný a k jeho pou¾ívání nejsou potøeba ¾ádné licence.
+
+Jak se ukázalo, v¹echny tyto kritéria splòuje právì formát \texttt{AFF}, který byl nakonec zvolen a zakomponován. Formát \texttt{AFF}\footnote{Z angl. \emph{animated file format}, definice na \url{http://www.ce.chalmers.se/BART/aff.html}.} vzniká v roce 2000 roz¹íøením svého pøedchùdce, formátu \texttt{NFF}\footnote{Z angl. \emph{normal file format}.}, pro úèely tzv. \emph{BART} (z~angl. \emph{A~Benchmark of Animated Ray Tracing}, viz~\cite{BART00}). Oba formáty jsou textové a ¾ádný z nich není zatí¾en licencí. Formát \texttt{NFF} umo¾òuje popsat statické scény pomocí základních primitiv, definovat jejich materiály a textury, svìtla a kameru. Formát \texttt{AFF} pak zachovává v¹echny pùvodní entity z formátu \texttt{NFF} a navíc pøidává mo¾nost jednoduchým zpùsobem definovat animace objektù a to jak primitiv a svìtel tak i kamery. Popis scény je realizován pomocí entit, kde ka¾dá entita má vlastní identifikátor a formát zápisu. Mezi základní entity pùvodního \texttt{NFF} formátu patøí:
+
+\begin{itemize}
+	\item \texttt{v} -- definice kamery (pozice, smìr, rozli¹ení projekèní roviny v pixelech, apod.),
+	\item \texttt{l} -- pozice a barva jednoho svìtla ve scénì,
+	\item \texttt{f} -- základní definice materiálu a barvy povrchu primitiva,
+	\item \texttt{s} -- popis primitiva typu \emph{koule},
+	\item \texttt{c} -- popis primitiva typu \emph{válec} nebo \emph{jehlan}.
+\end{itemize}
+
+Formát \texttt{AFF} pøidává nové entity, zejména pak pro definici transformací a to jak statických, tak i dynamických (pomocí nich¾ jsou realizovány právì animace). Dále pak definuje nová primitiva (trojúhelník a tzv. trojúhelníkový \emph{mesh}) a mo¾nost do sebe \texttt{AFF} soubory libovolnì vnoøovat \emph{include} klauzulí:
+
+\begin{itemize}
+	\item \texttt{xs} -- entita popisující statickou transformaci v¹ech entit, které obsahuje,
+	\item \texttt{x} -- entita definující dynamickou transformaci (viz \texttt{k}) v¹ech entit, které obsahuje,
+	\item \texttt{k} -- realizace animací popisem jejích klíèových snímkù podle názvu (viz entita \texttt{x}),
+	\item \texttt{a} -- parametry animace (èas zaèátku a konce animace, poèet klíèových snímkù),
+	\item \texttt{i} -- název vnoøeného souboru s popisem èásti scény (tzv. \emph{include} klauzule),
+	\item \texttt{tt} -- popis primitiva typu trojúhelník s vlastní texturou,
+	\item \texttt{m} -- tzv. \emph{triangle mesh}, tedy objekt tvoøený skupinou trojúhelníkù, ka¾dý volitelnì s normálovými vektory a texturovacími souøadnicemi pro ka¾dý vrchol.
+\end{itemize}	
+
+Pøedchozí výèet entit formátu \texttt{AFF} není úplný, ale pro ilustraci to jistì staèí\footnote{Úplný seznam entit vèetnì formátu jejich definice, popisu a pøíkladu pou¾ití,\\ viz \url{http://www.ce.chalmers.se/BART/aff.html}.}. Pøesto byly vypsány ty nejdùle¾itìj¹í a nejèastìji pou¾ívané entity. A jak je patrné, formát \texttt{AFF} je velice jednoduchý a jeho pou¾ívání intuitivní. Pøes malý poèet základních entit je v¹ak mo¾né pomocí tohoto formátu popsat velmi komplexní scény, které mohou být navíc animované (viz napø. scény \emph{Kitchen} nebo \emph{Robots} v~\cite{BART00}).
+
+
+\subsection{Vlastní implementace a vytvoøení \emph{grafu scény}}
+\label{ssec:4_scene}
+
+Jak ji¾ bylo øeèeno, scéna je konstruována ze svého popisu ulo¾eného v externím souboru ve formátu \texttt{AFF}. Proto je nejprve nutné tento soubor naèíst a provést jeho syntaktickou analýzu pomocí \emph{parseru}. Ten je implementován ve tøídì \texttt{AffParser}, která ve svém konstruktoru pøijímá název souboru s popisem scény a instanci objektu scény. Bìhem parsování \texttt{AFF} souboru jsou volány metody tøídy \texttt{Scene}, které pøedstavují \emph{API}\footnote{API (z angl. \emph{Application Programming Interface}) oznaèuje rozhraní pro programování aplikací. Jedná se o~sbírku procedur a~funkcí, které lze vyu¾ít mimo danou tøídu nebo knihovnu.} pro její naplnìní v¹emi entitami z \texttt{AFF} souboru (tedy primitivy, svìtly, nastavením kamery, materiály, apod.).
+
+Jak je patrné, tøída \texttt{Scene} implementuje vlastní scénu a jejím hlavním úkolem je shroma¾ïovat a udr¾ovat informace o v¹ech entitách, které obsahuje a tyto informace upravovat (napø. pøi animacích) a na po¾ádání je poskytovat okolí (zejména \emph{raytraceru}, viz podkapitola~\ref{sec:4_raytracer}). Pøi jejím vytváøení je konstruován tzv. \emph{graf scény}\footnote{Ve své podstatì se jedná o $n$-ární strom s jedním hlavním koøenem.}, kde si ka¾dý uzel grafu (implementovaný tøídou \texttt{SceneNode}) uchovává seznam v¹ech svých potomkù, seznam primitiv a svoji transformaèní matici. Celý graf pak udr¾uje informace o pozicích a transformacích jednotlivých primitiv v ka¾dém uzlu. 
+
+Jak bylo uvedeno v podkapitole~\ref{ssec:4_aff}, formát \texttt{AFF} nabízí mo¾nost definovat \emph{statickou} (entita \texttt{xs}) a \emph{dynamickou} (entita \texttt{x}) transformaci, pøièem¾ jednotlivé transformace je mo¾né do sebe libovolnì vnoøovat. Základní rozdíl mezi nimi je pak ten, ¾e statická transformace má napevno zadány své parametry (posun, rotace a zmìna mìøítka), kde¾to transformace dynamická obsahuje ve své definici pouze jméno. To je pak svázáno s entitou \texttt{k}, která popisuje transformace v jednotlivých klíèových snímcích animace v èase (více viz podkapitola~\ref{ssec:4_animations}).
+
+Oba typy uzlù bylo nutné zohlednit i pøi implementaci. Zatímco u statického uzlu je transformaèní matice známa ji¾ pøi konstrukci scény (pøímo z \texttt{AFF} souboru) a je mo¾né ji uzlu nastavit hned, dynamický uzel obsahuje pouze svoje jméno a jeho transformaèní matice je inicializována na matici identity\footnote{Matice identity je jednotkový prvek pro násobení matic.}. Konkrétní transformaèní matice je vypoèítána a nastavena a¾ pøi vlastním bìhu animace (viz podkapitola~\ref{ssec:4_animations}). Aby v¹ak transformace primitiv v konkrétním uzlu probíhaly správnì, dochází k výpoètu finální transformaèní matice pro daný uzel skládáním matic v jednotlivých uzlech a to v¾dy smìrem od listu ke koøenu (graf je implementován jako $n$-ární stom). Touto maticí jsou následnì transformovány v¹echny primitiva, která daný uzel obsahuje. Finální matici je nutné poèítat v¾dy znovu pro ka¾dý statický (pøi sestavování scény) i dynamický (pøi ka¾dém snímku animace) uzel grafu.
+
+
+\subsection{Animace a jejich správa}
+\label{ssec:4_animations}
+
+Animace jsou nedílnou souèástí formátu \texttt{AFF}, který je definuje pomocí entity \texttt{k}. Ta obsahuje popis klíèových snímkù animace v èase a unikátní jméno, kterým je ka¾dá animace svázána s jedním nebo více dynamickými uzly grafu scény (entita \texttt{x}). Entita \texttt{k} definuje celkem ètyøi typy klíèových snímkù. Jedná se o \emph{posun} (\texttt{transl}), \emph{rotaci} (\texttt{rotate}), \emph{zmìnu mìøítka} (\texttt{scale}) a \emph{viditelnost} (\texttt{visibility}). Pøi sestavování scény jsou pro ka¾dou animaci vytvoøeny seznamy struktur, které jsou pøedány tøídì \texttt{Animation}. Ta nad nimi provede pøíslu¹né výpoèty a ulo¾í si je pro vlastní bìh aplikace.
+
+Pro nalezení konkrétní transformaèní matice v daném èasovém okam¾iku je provedena lineární interpolace mezi dvìma nejbli¾¹ími klíèovými snímky (podle èasu snímkù a aktuálního èasu animace). Nová transformaèní matice je pak nastavena danému dynamickému uzlu a provedena správná transformace v¹ech primitiv, které uzel obsahuje. A opìt, nová transformaèní matice je nejprve postupnì skládána (násobena) se v¹emi maticemi rodièovských uzlù od aktuálního uzlu grafu. Transformace primitiv následuje vzápìtí pomocí výsledné transformaèní matice.
+
+Mo¾ných øe¹ení problému animací bylo více. Napø. nastavit objekt animace pøímo dynamickému uzlu. Jeliko¾ je v¹ak animace scény volitelná, byl zvolen pøístup implementující tzv. \emph{správce animací} (tøída \texttt{AnimationManager}). Ten udr¾uje v¹echny animace ve scénì a na po¾ádání vrací pøíslu¹né transformaèní matice podle jména dané animace. Kromì toho si sám udr¾uje dal¹í dùle¾ité promìnné pro øízení bìhu celé animace scény, jako je èas zaèátku a konce v¹ech animací, poèet snímkù nebo aktuální èas animace a její aktuální snímek. Dále pak poskytuje \emph{API} pro vlastní øízení animace pro pøechod na následující nebo pøedchozí snímek, konkrétní snímek nebo konkrétní èas animace.
+
+
+\section{Implementace jednoduchého \emph{raytraceru}}
+\label{sec:4_raytracer}
+
+V pøedchozích kapitolách, pøi definici metody \emph{bezsnímkového renderování}, bylo nìkolikrát uvedeno, ¾e vlastní aktualizace hodnoty pixelu je zpravidla realizována pomocí \emph{raytraceru}. Nejinak tomu je i v pøípadì této demonstraèní aplikace. Proto je celkem logické, ¾e \emph{raytracer} jako takový, je jednou z hlavních komponent celé aplikace a s pøihlédnutím k algoritmu~\ref{alg:2_fr_basic} právì na nìm v nejvìt¹í míøe závisí celková odezva aplikace. Jeho úkolem tedy je poèítat novou barvu pixelu v aktuálním èase (v závislosti na aktuálním stavu scény) a tu vracet nìjaké nadøazené komponentì aplikace (jedná se o \emph{vzorkovaè}, tøída \texttt{Sampler}, viz dále).
+
+
+\subsection{Sledování paprsku a výpoèet barvy pixelu}
+\label{ssec:4_tracing}
+
+\emph{Raytracer} --- z èásti pøevzatý z døívìj¹ích vlastních projektù a z èásti inspirován v~\cite{SM03} a ve znaèné míøe pøizpùsoben pro potøeby této práce --- je implementovaný ve tøídì \texttt{Raytracer}. Jeliko¾ je metoda \emph{bezsnímkového renderování} pøedev¹ím metodou pro zobrazování poèítaèové grafiky v reálném èase, bylo nutné se zamìøit na efektivitu výpoètu barvy a oprostit se od v¹ech pokroèilých, zbyteèných a èasovì nároèných funkcí. Proto je výsledný \emph{raytracer} velmi jednoduchý a relativnì rychlý. A pøesto zvládá v¹echny základní a oèekávané operace (difuse, odlesky, odrazy a lomy, tvrdé stíny, textury, anti-aliasing, apod.).
+
+Výpoèet barvy konkrétního pixelu je zalo¾en na vysílání a sledování paprskù ve scénì. Pokud je nalezen nejbli¾¹í prùseèík mezi aktuálním paprskem a nìjakým primitivem ve scénì, je výsledná barva pixelu slo¾ena ze tøí pomocný barev. Rovnice~\eqref{eq:4_phong} implementuje tzv. \emph{phongùv osvìtlovací model} a podle ní je spoèítána základní \emph{difusní} a \emph{spekulární} barva povrchu vèetnì její \emph{ambientní} slo¾ky podle materiálu a textury nalezeného primitiva.
+
+\begin{equation}
+	I_p = k_a + 
+		\sum_{m \in L} \left( 
+			k_d \left( 
+				\vec{L}_m \cdot \vec{N} 
+			\right) 
+			+ k_s \left(
+				\vec{R}_m \cdot \vec{V}
+			\right)^{\alpha}
+		\right) \mathrm{,}
+	\label{eq:4_phong}
+\end{equation}
+
+\noindent kde $k_a$ je \emph{ambientní} slo¾ka, $k_d$ je \emph{difusní} slo¾ka a $k_s$ slo¾ka \emph{spekulární}. $L$ pøedstavuje seznam v¹ech svìtel ve scénì a $\vec{L}_m$ je vektor k $m$-tému svìtlu. $\vec{N}$ je normála v bodì dopadu paprsku a $\alpha$ urèuje ostrost odleskù. $\vec{V}$ je pohledový vektor smìøující do kamery a $\vec{R}_m$ je vektor odrazu:
+
+\begin{equation}
+	\vec{R}_m = 2(\vec{L}_m \cdot \vec{N})\vec{N} - \vec{L}_m \mathrm{.}
+	\label{eq:4_rm}
+\end{equation}
+
+Rovnice~\eqref{eq:4_phong} ji¾ zohledòuje i zastínìní místa dopadu paprsku v závislosti na v¹ech svìtlech ve scénì. Pokud to vlastnosti materiálu objektu umo¾òují\footnote{Napø. materiály jako lesklý kov nebo zrcadlo.}, je spoèítána barva odleskù v místì dopadu paprsku. To je realizováno pomocí rekurze vytvoøením nového, \emph{sekundárního paprsku} podle rovnice:
+
+\begin{equation}
+	\vec{R}_{refl} = \vec{D} - 2(\vec{D} \cdot \vec{N})\vec{N} \mathrm{,}
+	\label{eq:4_reflection}
+\end{equation}
+
+\noindent kde $\vec{D}$ je smìr pùvodního paprsku a $\vec{N}$ normála v bodì dopadu. Sekundární paprsek je rekurzivnì odra¾en do scény z místa dopadu pùvodního paprsku a proces se opakuje. Pokud je objekt v místì dopadu prùhledný\footnote{Napø. materiál typu sklo nebo voda.} je vytvoøen opìt nový, sekundární paprsek, který je zalomen podle rovnice~\eqref{eq:4_refraction}, kde $\vec{N}$ je normála v bodì dopadu, $\vec{D}$ je smìr pùvodního paprsku a $n_1$ a $n_2$ indexy lomu v prvním a druhém prostøedí. Nový paprsek je opìt rekurzivnì poslán do scény nebo dovnitø objektu a hledání pomocné barvy se opakuje.
+
+\begin{equation}
+	\vec{R}_{refr} = -\cos\theta_1 \vec{N} + \dfrac{n_2}{n_1}(\cos\theta_2 \vec{N} + \vec{D}) \mathrm{.}
+	\label{eq:4_refraction}
+\end{equation}
+
+Rovnice~\eqref{eq:4_reflection} a~\eqref{eq:4_refraction} vytváøejí nový paprsek a vyu¾ívají rekurzivního volání, které je provádìno do urèité hloubky (tu je nutné nastavit explicitnì). Výsledkem je v¾dy barva, která je pøiètena k hlavní barvì pixelu (viz rovnice~\eqref{eq:4_phong}). A koneènì, tato výsledná barva je vrácena do nadøazené komponenty (\texttt{Sampler}) nebo zapsána na výstup (viz obrázeky~\ref{fig:4_raytracer_portfolio_a} a~\ref{fig:4_raytracer_portfolio_b}).
+
+
+\begin{figure}[p]
+	\centering
+	\includegraphics[width=9.5cm]{./fig/portfolio_cornell.png}
+	\caption{První ukázka výstupu \emph{raytraceru}, která ukazuje textury, \emph{normálové mapy}, odlesky a prùhledné koule na upravené scénì tzv. \emph{Cornell boxu}. Scéna obsahuje celkem $32$ primitiv. Se zapnutým \emph{supersamplingem} $3\times3$ byla na rozli¹ení $1\,024\times1\,024$ renderována pøibli¾nì $10$ minut.} 
+	\label{fig:4_raytracer_portfolio_a}
+\end{figure}
+
+\begin{figure}[p]
+	\centering
+	\includegraphics[width=12cm]{./fig/portfolio_museum.png}
+	\caption{Druhá ukázka výstupu \emph{raytraceru} na scénì \emph{Museum} z~\cite{BART00}. Scéna obsahuje animaci kamery a animovaných $1\,024$ trojúhelníkù. Celkem scéna obsahuje $11\,166$ primitiv. Renderování scény na rozli¹ení $800\times600$ se \emph{supersamplingem} $3\times3$ trvalo cca $40$ minut.} 
+	\label{fig:4_raytracer_portfolio_b}
+\end{figure}
+
+
+\subsection{Dìlení prostoru scény -- \emph{kd}-strom}
+\label{ssec:4_kd_tree}
+
+Samotný výpoèet barvy pixelu je relativnì rychlá operace, která ov¹em závisí na rychlosti nalezení prùseèíku paprsku s nejbli¾¹ím primitivem. To je pøímo úmìrné celkovému poètu primitiv ve scénì. A pokud je scéna velmi komplexní, tento výpoèet ji¾ není triviální zále¾itostí. Proto je pro zrychlení nalezení prùseèíku s nejbli¾¹ím primitivem vyu¾it tzv. \emph{kd}-strom, který byl navr¾en a definován napø.v~\cite{HB02} nebo v~\cite{WH06}.
+
+Konstrukce \emph{kd}-stromu je implementována podle heuristiky \texttt{SAH}\footnote{Z angl. \emph{surface area heuristic}.} definované v napø.v~\cite{W04}. Ta hledá ideální dìlící pozici na jedné z rovin podle ceny ka¾dé mo¾né dìlící pozice. Dìlící pozice s nejlep¹í cenou je pak zvolena pro rozdìlení prostoru podle aktuální roviny na dva pod-prostory\footnote{Pod-prostorem se rozumí osovì zarovnaný obalový kvádr -- box -- z angl. \emph{axis aligned bounding box}.}. Dìlení ka¾dého pod-prostoru je pak provádìno rekurzivnì do urèité hloubky (viz rovnice~\eqref{eq:4_kd_depth}). Cena dìlící pozice je poèítána podle rovnice:
+
+\begin{equation}
+	cost_{split}(V_L, N_L, V_R, N_R) = C_{trav} + P(B_L \vert V) \cdot N_L + P(B_R \vert V) \cdot N_R\mathrm{,}
+	\label{eq:4_sah}
+\end{equation}
+
+\noindent kde $N_L$, resp. $N_R$, je poèet primitiv le¾ících v levém prostoru (boxu) $B_L$, resp. pravém prostoru $B_R$, a $C_{trav}$ je vhodnì zvolenou konstantou. Pøi dìlení prostoru $B$ na dva pod-prostory $B_L$ a $B_R$ je nejprve nutné urèit pravdìpodobnost $P(B_n \vert V)$ udávající, zda paprsek pøi prùchodu stromem nav¹tíví daný prostor. Pravdìpodobnost pak lze poèítat podle rovnice:
+
+\begin{equation}
+	P(B_L \vert B) = \dfrac{SA(B_L)}{SA(B)} \quad \mathrm{a} \quad P(B_R \vert B) = \dfrac{SA(B_R)}{SA(B)} \mathrm{,}
+	\label{eq:4_sah_prob}
+\end{equation}
+
+\noindent kde $SA(B) = 2(B_xB_y + B_xB_z + B_yB_z)$ urèuje plochu prostoru $B$ s rozmìry $B_x$, $B_y$ a~$B_z$ v jednotlivých osách. Pro rozdìlení ka¾dého uzlu stromu je proces volán rekurzivnì na oba jeho pod-uzly. Koncovou hloubku rekurze, resp. vý¹ku výsledného \emph{kd}-stromu, je mo¾né specifikovat explicitnì nebo ponechat nastavení automatické, které je poèítáno podle rovnice:
+
+\begin{equation}
+	depth = \log_2 prim_{count} \mathrm{,}
+	\label{eq:4_kd_depth}
+\end{equation}
+
+\noindent kde $prim_{count}$ udává celkový poèet primitiv ve scénì. S vyu¾itím logaritmu o základu $2$ bude hloubka stromu i pro mnoho primitiv relativnì malá\footnote{Pro $1\,048\,576$ primitiv ve scénì bude hloubka \emph{kd}-stromu $20$.}. 
+
+Pøesto, ¾e implementace \emph{kd}-stromu pøiná¹í celkem rapidní zrychlení pøi hledání prùseèíku paprsku s nejbli¾¹ím primitivem ve slo¾itých scénách, je pøínos ve scénách jednoduchých sporný. A jeliko¾ byly pro testovací úèely navr¾eny pouze jednoduché scény èítající relativnì málo primitiv, \emph{kd}-strom se prakticky nepou¾ívá a jeho implementace je pouze experimentální.
+
+
+\section{Testovací scény a prùbìh testování}
+\label{sec:4_testing}
+
+Pøedtím, ne¾ bude popsána samotná implementace \emph{bezsnímkového rendereru} a jeho \emph{adaptivní varianty}, je vhodné pøedstavit testovací scény, na kterých budou provádìny testy a diskutovány vizuální výsledky a popsat algoritmus pro vyhodnocení výsledkù. Pro testování byly zvoleny tøi jednoduché, pøesto dosti rozlièné scény. Jedná se o a) \emph{skákací míè} (viz obrázek~\ref{fig:4_ts-bball}), b) \emph{planetu Zemi} (viz obrázek~\ref{fig:4_ts-earth}) a c) \emph{¹achovou figurku} (viz obrázek~\ref{fig:4_ts-pawn}).
+
+
+\subsection{Testovací scény}
+\label{ssec:4_testing_scenes}
+
+První testovací scéna, \emph{skákající míè}, je klasickým pøípadem scény, který demonstruje pohyb pøedmìtù ve statickém okolí. Scéna se skládá ze ètyø stìn, podlahy a stropu tvoøících krychli. Pod stropem je umístìno jediné svìtlo. Uvnitø krychle je koule -- míè -- který dopadá ze vzduchu na podlahu a odrá¾í se zpìt, pøièems se pohybuje zleva doprava. Scéna se skákajícím míèem má demonstrovat zmìnu geometrie scény v èase a to tak, ¾e vìt¹ina projekèního plátna je po celou dobu animace statická a jen její minoritní èást se mìní. Dùle¾itým faktorem v této scénì je stín vr¾ený koulí na podlahu a stìny.
+
+Druhá scéna, \emph{planeta Zemì}, je je¹tì jednodu¹¹í a obsahuje jedinou kouli, která pøedstavuje planetu Zemi a jedno svìtlo (slunce). Koule je pota¾ena odpovídající texturou a v èase je statická. Dochází ale k pohybu kamery, která se otáèí zleva doprava a zpìt, pak obraz oddálí a nakonec pøiblí¾í. Cílem scény je zaznamenat pohyb v¹ech pøedmìtù ve scénì a jejich textur. Pøesto ¾e dochází pouze k pohybu kamery, v prùbìhu celé animace dojde k potøebì aktualizovat témìø v¹echny pixely rastru. Poslední scéna, \emph{¹achová figurka}, obsahuje jednu ¹achovou figurku z lesklého zlatého materiálu ($2\,400$ trojúhelníkù) a jedno svìtlo. Geometrie i kamera je statická, pohybuje se pouze svìtlo. Nejprve zleva doprava a následnì zpìt. Cílem scény je demonstrovat zachycení vr¾eného stínu v èase na tìle figurky. 
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[\emph{Skákající míè}]{\includegraphics[width=5cm, height=5cm]{./fig/bball_ideal.png} \label{fig:4_ts-bball}}
+	\subfloat[\emph{Planeta Zemì}]{\includegraphics[width=5cm, height=5cm]{./fig/earth_ideal.png} \label{fig:4_ts-earth}}
+	\subfloat[\emph{©achová figurka}]{\includegraphics[width=5cm, height=5cm]{./fig/pawn_ideal.png} \label{fig:4_ts-pawn}}
+	\caption{Ukázka testovacích scén pou¾ívaných v dal¹ím textu pro demonstraci vizuálních výsledkù jednotlivých èástí \emph{bezsnímkového rendereru}. Scény jsou zachyceny v konkrétním kroku jejich animace a renderovány na rozli¹ení $256\times256$ pouze pomocí \emph{raytraceru} bez \emph{supersamplingu}. Jedná se tedy o referenèní \uv{ideální} výstupy.}
+	\label{fig:4_testing_scenes}
+\end{figure}
+
+
+\subsection{Testování a vyhodnocení}
+\label{ssec:4_evaluation}
+
+Pro testování a vyhodnocení jednotlivých èástí bezsnímkové metody bylo nutné stanovit metriky, kterými urèit výslednou chybu oproti ideálnímu obrazu. Pøi hledání metrik bylo vycházeno z~\cite{DWWL05}, kde je porovnán výstup \emph{bezsnímkového rendereru} v konkrétním èasovém okam¾iku s ideálním výstupem z \emph{raytraceru}. Rozdíl barev jednotlivých pixelù pak udává výslednou chybu. Bezsnímkový výstup byl porovnáván v¾dy pøi pøechodu na nový klíèový snímek animace. Tento postup je velmi jednoduchý a intuitivní, ale rozhodnì není ¹patný, nebo» jak je uvedeno v~\cite{Z96}, je v ka¾dém èasovém okam¾iku pøítomný aktuální výstup \emph{bezsnímkového rendereru}\footnote{Ostatnì s pøihlédnutím k algoritmu~\ref{alg:2_fr_extended} je v¾dy pøítomen \emph{frame buffer} a ten obsahuje celý, i kdy¾ z vìt¹í èásti zastaralý snímek.}. Samotné vyèíslení chyby bylo provedeno pøes v¹echny snímky animace, kde pro ka¾dý snímek byla chyba poèítána podle rovnice:
+
+\begin{equation}
+	\sigma = \dfrac{1}{w \cdot h} \sum_{x = 1}^{w}\sum_{y = 1}^{y} i(x, y) \mathrm{,}
+	\label{eq:4_testing_deviance}
+\end{equation}
+
+\noindent kde $w$ udává ¹íøku a $h$ vý¹ku obrazu v pixelech a $i(x, y)$ je intenzita barvy pixelu na dané pozici po rozdílu mezi obìma výstupy.
+
+Testování bylo provádìno na vý¹e uvedených scénách pomocí \uv{ideálního} \emph{bezsnímkového rendereru} -- rendereru s nulovou odezvou. Ten simuluje ubíhající èas animace a tím je schopen poèítat v¹echny vzorky v nulovém èase. Poèet vzorkù byl $4\,500$ ($7\%$ z celkového poètu pixelù) pokud není uvedeno jinak. Výchozí metoda pro výbìr vzorkù pro øízené vzorkování a rekonstrukci byla \emph{Haltonova posloupnost} a poèet oblastí byl $32 \times 32$ a pro rekonstrukci byl faktor $s = 100$.  
+
+
+\section{Implementace základní metody}
+\label{sec:4_basic_fr}
+
+Implementace základní varianty \emph{bezsnímkového renderování}, tak jak byla popsána a definována v kapitole~\ref{chap:2_fr}, je vcelku jednoduchá. Staèí náhodnì generovat v¾dy dvì souøadnice pro $x$-ovou a $y$-ovou osu a pro získanou pozici na projekèním plátnì spoèítat novou barvu pomocí \emph{raytraceru}. Tuto barvu pak ihned zapsat do výstupního \emph{frame bufferu} a ten zobrazit na displeji. Jak ji¾ ale bylo øeèeno, dne¹ní zobrazovací zaøízení ani grafické karty neumo¾òují pøímí zápis hodnoty pixelu na displej a proto je pøi implementaci nutné vycházet z algoritmu~\ref{alg:2_fr_extended}. Jeho klíèová èást le¾í na øádku~\ref{alg:ln3:2_fr_extended} v podmínce cyklu \texttt{while}. Cyklus je provádìn dokud \emph{není nutné pøekreslit displej}. Kdy je ov¹em tato podmínka je¹tì splnìna a kdy u¾ ne a cyklus by se mìl ukonèit? 
+
+
+\subsection{Hlavní smyèka a synchronizace}
+\label{ssec:4_fr_main_loop_and_sync}
+
+Výhodou algoritmu~\ref{alg:2_fr_extended}, resp. právì podmínky \texttt{while} cyklu na øádku~\ref{alg:ln3:2_fr_extended} je volnost, kterou podmínka dává. A je skuteènì na autorovi aplikace, jak se rozhodne tuto podmínku implementovat. Zpùsobù mù¾e být více, ale ètyøi mo¾nosti se pøímo nabízejí:
+
+
+\begin{enumerate}
+	\item napø. mù¾e být stanoven nìjaký konstantní èas $t_s$ kroku a pokud je èas bìhu vnìj¹í smyèky men¹í ne¾ èas $t_s$, dochází k aktualizaci pixelù. Jakmile tomu bude naopak, cyklus \texttt{while} se ukonèí a dojde k vykreslení aktuálního obsahu \emph{frame bufferu}. Tímto zpùsobem je mo¾né docílit fixní obnovovací frekvence, napø. $25Hz$.
+	\item Dal¹ím zpùsobem, který vyhází z pøedchozího, je nastavení èasu $t_s$ tak, aby odpovídal jednomu kroku animace uvnitø scény (podle celkového poètu snímkù animace a celkového èasu animace). Tím se \emph{frame buffer} na displeji pøekreslí v¾dy, kdy¾ je to nezbytnì nutné, tedy v¾dy pøi pøechodu na nový snímek.
+	\item Rovnì¾ je mo¾né od èasu a animací úplnì upustit a soustøedit se pouze na poèet aktualizovaných pixelù v rámci jednoho kroku a celý cyklus ukonèit v okam¾iku, kdy bylo aktualizováno ký¾ené mno¾ství pixelù. S tím ov¹em souvisí problém synchronizace bìhu animace ve scénì. Pøesnìji, pokud je mno¾ství pixelù pøíli¹ veliké a jejich aktualizace trvá netriviální èas, animace mezitím mù¾e poskoèit i o nìkolik snímkù dopøedu. Pak ale pixely aktualizované døíve odpovídají jinému stavu aplikace ne¾ ty, které byly aktualizovány pozdìji. Tento problém ov¹em v ¾ádném pøípadì neodporuje definici \emph{bezsnímkového renderování} tak jak bylo definováno v kapitole~\ref{chap:2_fr}, ba naopak.
+	\item Posledním mo¾ným zpùsobem je mo¾nost obnovovat výstup na displeji v¾dy, kdy¾ jsou pøijaty u¾ivatelské vstupy. Napø. pohyb my¹i a tím zmìna pohledu kamery ve scénì nebo posun kamery ve scénì. Zde v¹ak mù¾e vznikat problém s dynamickými objekty a animacemi a tento pøístup se hodí spí¹e na statické scény, resp. na takové scény jejich¾ geometrie se mìní právì v závislosti na u¾ivatelských vstupech.
+\end{enumerate}
+
+
+Vý¹e zmínìné zpùsoby byly rovnì¾ zahrnuty i do demonstraèní aplikace a celý \texttt{while} cyklus, resp. jeho ukonèovací podmínka je implementována ve tøídì \texttt{Application}. To je ostatnì jeden ze dvou úkolù této tøídy. Druhým úkolem je pak synchronizace vlastní animace a bìhu aplikace a pøechod na následující snímek v¾dy, kdy¾ je to nutné. Samotnou aktualizaci pixelu, tedy jeho výbìr a volání \emph{raytraceru} je realizováno ve tøídì \texttt{Sampler} v metodì \texttt{GetNextSample()}, která je volána právì z tøídy \texttt{Application}.
+
+V¹echny ètyøi mo¾nosti uvedené vý¹e jistì dávají smysl a mají své opodstatnìní. Jedna mo¾nost v¹ak chybí a tou je úplnì odstranìní cyklu \texttt{while}, tedy øádku~\ref{alg:ln3:2_fr_extended} z algoritmu~\ref{alg:2_fr_extended}. To je samozøejmì mo¾né a prakticky by to skuteènì odpovídalo témìø pravému \texttt{bezsnímkovému renderu} definovaného v~\cite{BFMZ94}, av¹ak silnì neefektivní. Pøepínání bufferù v pamìti grafické karty stojí urèitý èas a opakovat tuto èinnost v¾dy po aktualizaci ka¾dého pixelu by velmi negativnì sní¾ilo odezvu aplikace. Pøesto je mo¾né této mo¾nosti jednodu¹e docílit vyu¾itím tøetí mo¾nosti z výètu vý¹e nastavením mno¾ství pixelù na $1$.
+
+
+\subsection{Výbìr pixelù pro aktualizaci}
+\label{ssec:4_fr_choosing_pixels}
+
+V podkapitole~\ref{ssec:4_fr_main_loop_and_sync} byl pøedstaven \emph{vzorkovaè} (tøída \texttt{Sampler}). Ten se stará o vlastní výbìr a aktualizaci pixelù a o zápis nové hodnoty do \emph{frame bufferu}. A oprávnìnì. Ostatnì i v~\cite{DWWL05}, pota¾mo na obrázku~\ref{fig:3_afr_components} je jednotka \emph{vzorkovaèe} hlavní komponentou \emph{bezsnímkového rendereru}. Vzorkovaè v základní variantì pracuje velmi jednodu¹e:
+
+
+\begin{enumerate}
+	\item \emph{vybere} dvì souøadnice a sestaví pozici ve dvourozmìrném prostoru s pøihlédnutím k rozmìrùm výstupního obrázku,
+	\item zavolá \emph{raytracer}, který spoèítá barvu v daném èase na daném pixelu a tu vrátí,
+	\item vzorkovaè zapí¹e novou barvu do \emph{frame bufferu} a vrátí øízení aplikaci.
+\end{enumerate}
+
+
+V prvním bodu výètu vý¹e je zámìrnì slovo \uv{vybere} kurzívou. Výbìr pixelu pro aktualizaci je v pøípadì \emph{bezsnímkového renderování} velmi choulostivé téma a byla mu vìnována znaèná èást kapitoly~\ref{chap:2_fr}. Výbìr je mo¾no provádìt náhodným zpùsobem nebo pomocí sofistikovanìj¹ích metod, je¾ v¹echny byly pøedstaveny a popsány v podkapitole~\ref{sec:2_monte_carlo} a jejich výstup prezentován na obrázku~\ref{fig:2_monte_carlo}.
+
+V demonstraèní aplikaci nechybí ani jedna z uvedených metod. Implementace nejsou pøíli¹ podstatné, ve vìt¹í míøe bylo vycházeno z~\cite{SM03}. Dùle¾itìj¹í jsou vizuální výsledky a jejich srovnání napøíè metodami. Více v podkapitole~\ref{ssec:4_fr_visual_results}. Jediným problémem bylo rozli¹ení jednotlivých metod, proto¾e nìkteré metody v ka¾dém kroku poèítají v¾dy jeden vzorek (náhodný výbìr, \emph{Haltonova posloupnost}) a jiné (problém $n$ vì¾í, \emph{jittered sampling}) jich poèítají nìkolik najednou. Proto byla zvolena mo¾nost pøedpoèítání $n$ vzorkù dopøedu a ulo¾ení do fronty, ze které jsou pak vzorky postupnì odebírány (v¾dy na ¾ádost vzorkovaèe). Jakmile je fronta prázdná, je znovu pøedpoèítáno $n$ vzorkù najednou.
+
+
+\subsection{Vizuální výsledky}
+\label{ssec:4_fr_visual_results}
+
+Jak je patrné z obrázkù~\ref{fig:4_fr_bball} a~\ref{fig:4_fr_earth}, výstupy jsou pro jednotlivé metody pro pseudonáhodný výbìr vzorkù dosti rozdílné. Kvality jednotlivých metod ji¾ byly diskutovány v podkapitole~\ref{sec:2_monte_carlo} a aktuální výstupy dosa¾ené závìry potvrzují. Metody náhodného výbìru, problému $n$ vì¾í a \emph{jittered} vzorkování mají tendenci vytváøet shluky vzorkù. V této implementaci je dokonce \emph{jittered} vzorkování a náhodný výbìr prakticky stejný (co¾ lze pøisoudit kvalitnímu generátoru pseudonáhodných èísel). Metoda Poissonových diskù dává pomìrnì lep¹í výsledky, av¹ak její výpoèet je komplikovanìj¹í a pomalej¹í (viz podkapitola~\ref{ssec:2_poisson_disc}). A proto za nejlep¹í výstup lze pova¾ovat \emph{haltonovu posloupnost}, která doká¾e vzorky rozprostøít nejrovnomìrnìji pøes celé projekèní plátno. Problém je opìt ov¹em v efektivitì výpoètu, která s rostoucím èasem, resp. zvy¹ujícím se indexem vzorku, klesá (viz algoritmus~\ref{alg:2_halton}).
+
+
+\begin{table}[ht]
+	\centering
+	\begin{tabular}{|l||c|c|c|c|c|}
+		\hline 
+		~ & Halton & Jitter & Poisson & Náhodný výbìr & $n$ vì¾í \\ 
+		\hline 
+		\hline 
+		\emph{Skákající míè} & \textbf{2,973\%} & 3,322\% & 3,315\% & 3,321\% & 3,281\% \\ 
+		\hline 
+		\emph{Planeta Zemì} & \textbf{6,415\%} & 8,441\% & 8,424\% & 8,425\% & 8,469\% \\ 
+		\hline 
+		\emph{©achová figurka} & \textbf{0,638\%} & 0,925\% & 0,930\% & 0,920\% & 0,906\% \\ 
+		\hline 
+	\end{tabular} 
+	
+	\caption{Výsledky testù pro v¹echny testovací scény a pro v¹echny metody pro výbìr vzorkù poèítané podle rovnice~\eqref{eq:4_testing_deviance}. Testy byly provádìny na rozdílu ka¾dého snímku a ideálního výstupu pro v¹echny snímky animace. Z výsledkù jasnì vyplývá, ¾e \emph{Haltonova posloupnost} dosahuje nejmen¹í chyby ve v¹ech testovacích scénách a grafický výstup to jednoznaènì potvrzuje.}
+	\label{tab:4_fr_results}
+\end{table}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[Ideální výstup]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_ideal.png} \label{fig:4_fr_bball-1}}
+	\subfloat[Haltonova posloupnost]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_halton.png} \label{fig:4_fr_bball-2}} \\
+	\subfloat[\emph{Jittered} vzorkování]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_jitter.png} \label{fig:4_fr_bball-3}}
+	\subfloat[Poissonovi disky]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_poisson.png} \label{fig:4_fr_bball-4}} \\
+	\subfloat[Náhodný výbìr vzorkù]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_random} \label{fig:4_fr_bball-5}}
+	\subfloat[Problém $n$ vì¾í]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_rooks.png} \label{fig:4_fr_bball-6}} \\
+
+	\caption{Vizuální výsledky pro scénu \emph{skákajícího míèe}. Obrázek vlevo zobrazuje aktuální výstup rendereru a obrázek vpravo pak rozdíl aktuální výstupu s ideálním obrazem. Ka¾dý snímek byl renderován aktualizací $4\,500$ vzorkù. Jak je patrné, nejlep¹ích výsledkù dosahuje \emph{Haltonova posloupnost}, a dále pak rozdíl mezi \emph{jittered} vzorkováním a náhodným výbìrem vzorku je prakticky nulový.}
+	\label{fig:4_fr_bball}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[Ideální výstup]{\includegraphics[width=7.5cm]{./fig/basic_fr/earth/earth_ideal.png} \label{fig:4_fr_earth-1}}
+	\subfloat[Haltonova posloupnost]{\includegraphics[width=7.5cm]{./fig/basic_fr/earth/earth_halton.png} \label{fig:4_fr_earth-2}} \\
+	\subfloat[\emph{Jittered} vzorkování]{\includegraphics[width=7.5cm]{./fig/basic_fr/earth/earth_jitter.png} \label{fig:4_fr_earth-3}}
+	\subfloat[Poissonovi disky]{\includegraphics[width=7.5cm]{./fig/basic_fr/earth/earth_poisson.png} \label{fig:4_fr_earth-4}} \\
+	\subfloat[Náhodný výbìr vzorkù]{\includegraphics[width=7.5cm]{./fig/basic_fr/earth/earth_random} \label{fig:4_fr_earth-5}}
+	\subfloat[Problém $n$ vì¾í]{\includegraphics[width=7.5cm]{./fig/basic_fr/earth/earth_rooks.png} \label{fig:4_fr_earth-6}} \\
+
+	\caption{Testovací scéna \emph{Planeta Zemì} a její výstup pro rùzné metody výbìru pozice vzorku k aktualizaci. Na obrázku vlevo je opìt aktuální výstup a na obrázku vpravo porovnání s ideálním výstupem z \emph{raytraceru} (obrázek~\ref{fig:4_fr_earth-1}). Jak je patrná, opìt vyhrává \emph{Haltonova posloupnost}, kde¾to ostatní metody v kvalitì velmi zaostávají a jejich výstup je velmi podobný.}
+	\label{fig:4_fr_earth}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[Ideální výstup]{\includegraphics[width=7.5cm]{./fig/basic_fr/pawn/pawn_ideal.png} \label{fig:4_fr_pawn-1}}
+	\subfloat[Haltonova posloupnost]{\includegraphics[width=7.5cm]{./fig/basic_fr/pawn/pawn_halton.png} \label{fig:4_fr_pawn-2}} \\
+	\subfloat[\emph{Jittered} vzorkování]{\includegraphics[width=7.5cm]{./fig/basic_fr/pawn/pawn_jitter.png} \label{fig:4_fr_pawn-3}}
+	\subfloat[Poissonovi disky]{\includegraphics[width=7.5cm]{./fig/basic_fr/pawn/pawn_poisson.png} \label{fig:4_fr_pawn-4}} \\
+	\subfloat[Náhodný výbìr vzorkù]{\includegraphics[width=7.5cm]{./fig/basic_fr/pawn/pawn_random} \label{fig:4_fr_pawn-5}}
+	\subfloat[Problém $n$ vì¾í]{\includegraphics[width=7.5cm]{./fig/basic_fr/pawn/pawn_rooks.png} \label{fig:4_fr_pawn-6}} \\
+
+	\caption{Tøetí testovací scéna \emph{©achová figurka} pro v¹echny metody výbìru pozice vzorku pro aktualizaci. Jeliko¾ se mìní pouze stíny na figurce je chyba daleko men¹í ne¾ u ostatních scén. Pøesto v¹ak opìt nejlep¹í výsledky dává \emph{Haltonova posloupnost} a obrázky to jenom potvrzují. Ostatní metody trpí daleko vìt¹ím ¹umem a zobrazují osvìtlenou plochu, v tìch místech, kde je ji¾ dávno stín. Haltonova posloupnost naopak relativnì vìrnì vykresluje okraj stínu a výstup pùsobí daleko vìrohodnìji.}
+	\label{fig:4_fr_pawn}
+\end{figure}
+
+
+\section{Øízené vzorkování}
+\label{sec:4_guiding_sampling}
+
+\emph{Øízené vzorkování}, jeho¾ teoretické základy byly popsány v podkapitole~\ref{sec:3_guiding}, je prvním stupnìm pro vylep¹í metody \emph{bezsnímkového renderování} a pøed-pól pro finální rekonstrukci obrazu v \emph{adaptivní variantì}. V podkapitole~\ref{ssec:3_tiling} byly diskutovány dvì mo¾ná øe¹ení problému dìlení projekèního plátna a to: a) na rùznì veliké oblasti, kde v¹echny pak mají stejnou prioritu výbìru a za b) na stejnì veliké oblasti, kde se ale priorita li¹í oblast od oblasti. Jak ji¾ bylo uvedeno, první pøístup byl zvolen i v~\cite{DWWL05}, kde byl implementován pomocí $kd$-stromu. V nìm jsou ulo¾eny jednotlivé oblasti a jeliko¾ je nutné brát v úvahu i èasovou doménu, $k = 3$. Rozdìlení obrazu na oblasti je pak provádìno pomocí øezu stromem tak, aby pro v¹echny oblasti vracela funkce $h(U_{i, t})$ pøibli¾nì stejnou pravdìpodobnost. Výbìr konkrétní dla¾dice je pak mo¾né realizovat náhodnì. 
+
+Problém nastává po aktualizaci pixelu, nebo» jeho novou hodnotu je nutné ihned promítnout do oblasti a tedy rozlo¾ení pravdìpodobností zmìnit. Proto je potøeba provádìt rozdìlení obrazu na oblasti po aktualizaci ka¾dého pixelu, co¾ je v¹ak èasovì velmi nároèná operace a i v~\cite{DWWL05} je tento fakt obcházen a dìlení je realizováno po ka¾dých $25$ vzorcích. Druhý pøístup (viz obrázek~\ref{fig:3_tiling-uniform_area}) je o mnoho pohodlnìj¹í a dokonce umo¾òuje odstranit závislost jednotlivých dla¾dic $U_{i, t}$ na èase. Tento zpùsob byl zvolen v~\cite{S06} a v této práci byl rovnì¾ následován.
+
+
+\subsection{Dìlení projekèního plátna}
+\label{ssec:4_gs_tiling}
+
+Pøi implementaci vlastního dìlení projekèního plátna na oblasti bylo nutné vycházet algoritmu $\tau$ (viz~\eqref{eq:3_tau_fn}). Algoritmus pracuje nad stromem a nechává propadnout náhodnì generované èíslo $r$ od koøene a¾ k listu, který ji¾ pøedstavuje konkrétní oblast $U_i$. S pøihlédnutím k obrázku~\ref{fig:3_tiling_tree} byl strom implementován jako binární, kde ka¾dý uzel má právì dva potomky. Z toho dùvodu musí být poèet oblastí horizontálnì i vertikálnì sudý. Samotné dìlení probíhá od shora, tedy od celého obrazu a v¾dy ho rozdìlí na dvì poloviny, které si ulo¾í do pomocné struktury \texttt{TTileNodeInfo}. Tato struktura si uchovává ukazatele na rodièe, oba pod-uzly a objekt \texttt{Tile}, který je v¹ak ulo¾en pouze v listech stromu a pøedstavuje konkrétní oblast $U_i$. Posledním atributem struktury je pravdìpodobnost, je¾ je souètem pravdìpodobností obou pod-uzlù a nebo, pokud jde o list, pravdìpodobností dané oblasti. Aktuální oblast pak lze získat pomocí:
+
+
+\begin{center}
+\begin{small}
+\texttt{\textcolor{type}{Tile} *\textcolor{var}{currTile} = \textcolor{var}{tileManager}->\textcolor{method}{GetTileWithinRange}();}
+\end{small}
+\end{center}
+
+
+
+\noindent kde tøída \texttt{TileManager} se stará o správu binárního stromu vzpomínaného vý¹e, o v¹echny oblasti a samotný výbìr a aktualizaci pravdìpodobností jednotlivých uzlù. Nutno poznamenat, ¾e nyní stále není známá pozice nového vzorku pro aktualizaci, ale pouze oblast, ze které se bude novy vzorek vybírat. Pozici vzorku je nutné vybrat z dané oblasti pomocí metody \texttt{GetNextSample()}:
+
+
+\begin{center}
+\begin{small}
+\texttt{\textcolor{type}{TSample} *\textcolor{var}{smpl} = \textcolor{var}{currTile}->\textcolor{method}{GetNextSample}();}
+\end{small}
+\end{center}
+
+
+
+Výbìr vzorku v oblasti je realizován jednou z metod pro pseudonáhodný výbìr, které byly popsány v kapitole~\ref{sec:2_monte_carlo} a implementovány v rámci základní varianty \emph{bezsnímkového renderu} v kapitole~\ref{sec:4_basic_fr}. Pro øízené vzorkování a vlastnì i pro celou \emph{adaptivní variantu} byla vyu¾ita pouze \emph{Haltonova posloupnost}, která dává nejpøijatelnìj¹í výsledky. Struktura \texttt{TSample} uchovává informace o vzorcích, tedy jeho pozici na projekèním plátnì (pozice v dané oblasti je bezvýznamná), èas, kdy vzorek vznikl a jeho barvu. Tu je v¹ak nejprve nutné získat z \emph{raytraceru}:
+
+
+\begin{center}
+\begin{small}
+\texttt{\textcolor{var}{smpl}->\textcolor{var}{color} = \textcolor{var}{tracer}->\textcolor{method}{RunOnce}(\textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{x}(), \textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{y}());}
+\end{small}
+\end{center}
+
+
+
+Barvu vzorku je ji¾ mo¾né zapsat pøímo na výstup. Zajímavou funkcí, resp. metodou objektu \texttt{TileManager}, je funkce \texttt{GetTileWithinRange()} její¾ celý kód je znázornìn v kódu~\ref{src:4_get_tile_within_range}. Tato metoda implementuje právì zmiòovaný algoritmus $\tau$ (viz rovnice~\eqref{eq:3_tau_fn}). Jak je vidìt, metoda je velmi jednoduchá a tedy efektivní. Navíc je implementována v nerekurzivní formì, co¾ její efektivitu je¹tì zvy¹uje.
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Metoda pro získání oblasti U\_i pro výbìr vzorku pomocí náhodného èísla r}} \\
+\texttt{\textcolor{type}{Tile} *\textcolor{type}{TileManager}::\textcolor{method}{GetTileWithinRange}()} \\
+\verb+{+ \\
+\verb+    +\texttt{\textcolor{type}{TTileNodeInfo} *\textcolor{var}{currNode} = \textcolor{var}{tilesTree}[\textcolor{number}{0}];~~~\textcolor{comment}{// vybraný uzel stromu, koøen}} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{r} = \textcolor{method}{random}() * \textcolor{var}{currNode}->\textcolor{var}{variance};~~\textcolor{comment}{// náhodné èíslo r}} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Hledá odpovídají oblast podle èísla r a jejich pravdìpodobnosti}} \\
+\verb+    +\texttt{\textcolor{keyword}{for}(\textcolor{keyword}{int} \textcolor{var}{i} = \textcolor{number}{0}; \textcolor{var}{i} <= \textcolor{var}{height}; \textcolor{var}{i}++)} \verb+{+ \\
+\verb+        +\texttt{\textcolor{comment}{// Pokud se ji¾ jedná o list, vrací po¾adovanou oblast}} \\
+\verb+        +\texttt{\textcolor{keyword}{if}(\textcolor{var}{currNode}->\textcolor{var}{tile} != \textcolor{keyword}{NULL}) \textcolor{keyword}{return} \textcolor{var}{currNode}->\textcolor{var}{tile};} \\
+\\
+\verb+        +\texttt{\textcolor{comment}{// Zkou¹í levý podstrom}} \\
+\verb+        +\texttt{\textcolor{keyword}{if}(\textcolor{var}{r} < \textcolor{var}{currNode}->\textcolor{var}{left}->\textcolor{var}{variance}) \textcolor{var}{currNode} = \textcolor{var}{currNode}->\textcolor{var}{left};} \\
+\verb+        +\texttt{\textcolor{comment}{// Zkou¹í pravý podstrom}} \\
+\verb+        +\texttt{\textcolor{keyword}{else}} \verb+{+ \\
+\verb+            +\texttt{\textcolor{var}{r} -= \textcolor{var}{currNode}->\textcolor{var}{left}->\textcolor{var}{variance};} \\
+\verb+            +\texttt{\textcolor{var}{currNode} = \textcolor{var}{currNode}->\textcolor{var}{right};} \\
+\verb+        }+ \\
+\verb+    }+ \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Pravdìpodobnì do¹lo k chybì jeliko¾ nebyla nalezena ¾ádná oblast}} \\
+\verb+    +\texttt{\textcolor{keyword}{return NULL};} \\
+\verb+}+
+\end{small}
+	\caption{Zdrojový kód metody \texttt{GetTileWithinRange()}, která implementuje algoritmus $\tau$ (rovnice~\ref{eq:3_tau_fn}) a nerekurzivnì prochází binárním stromem a podle pravdìpodobností jednotlivých uzlù hledá správnou oblast obrazu, kterou následnì vrací. Hledání oblasti je realizováno pomocí náhodnì generovaného èísla $r$ v rozsahu $0$ -- max. pravdìpodobnost koøenového uzlu.}
+	\label{src:4_get_tile_within_range}
+\end{program}
+
+
+\subsection{Heuristika $h(U_i)$ a váhová funkce $\lambda$}
+\label{ssec:4_gs_heuristic}
+
+Pomocí algoritmu $\tau$, resp. metody \texttt{GetTileWithinRange()} (viz kód~\ref{src:4_get_tile_within_range}) je mo¾né získat konkrétní oblast $U_i$ a z ní pozici vzorku na projekèním plátnì. Co v¹ak stále zùstává nevyøe¹eno je, jak øídit vlastní vzorkování podle pravdìpodobností jednotlivých oblastí a jak tuto pravdìpodobnost poèítat. V kapitole~\ref{ssec:3_heuristic} byla pøedstavena funkce -- heuristika -- $h(U_i)$, která právì tuto informaci poskytuje. Sama heuristika je definována rovnicí~\eqref{eq:3_sigma_fn_2}, která je v¹ak na první pohled velmi komplikovaná a zpravidla vede k èasové slo¾itosti $\mathcal{O}(\vert A \vert)$, resp. $\mathcal{O}(m \cdot n)$ pøi dodr¾ení notace z rovnice~\eqref{eq:3_image_regions}, kde $m$ znaèí poèet pixelù pokrytých oblastí v horizontálním smìru a $n$ poèet pixelù ve vertikálním smìru. Lze si jednodu¹e spoèítat, ¾e pøi rozli¹ení obrazu napø. $256\times256$ pixelù a poètu oblastí $8\times8$ pøipadá na jednu oblast pøesnì $1\,024$ pixelù. Jeliko¾ je v¹ak nutné volat funkci $\sigma'(U_i)$ z rovnice~\eqref{eq:3_sigma_fn_3} po ka¾dém zpracovaném vzorku, je patrné, ¾e pùjde o znaèné zpomalení celé aplikace. Navíc se tímto krokem pouze zajistí správný výbìr oblasti v pøí¹tím kroku.
+
+Na¹tìstí je v~\cite{S06} vyu¾ita inkrementální verze rovnice~\eqref{eq:3_sigma_fn_2}, která sni¾uje èasovou slo¾itost na $\mathcal{O}(1)$. To pøiná¹í veliké zrychlení øízeného vzorkování a proto byla tato varianta vyu¾ita i v této práci. Pro sní¾ení èasové slo¾itosti je nutné nalézt inkrementální verze obou sèítancù a pouze poèítat jejich odchylky mezi kroky $a$ a $a+1$. Nejprve je nutné upravit rovnici~\eqref{eq:3_sigma_fn_2} do následující podoby: 
+
+
+\begin{equation}
+	\overline{i} = \dfrac{1}{w_a}\sum_{l=1}^{a}e^{(t_l - t_a) / s} \cdot i_l
+	\quad \mathrm{kde} \quad
+	w_a = \sum_{l = 1}^{a}e^{(t_l - t_a)/s}
+	\mathrm{,}
+	\label{eq:4_pre_exp_val}
+\end{equation}
+
+
+\noindent kde $a = \vert A \vert$ a, pro zjednodu¹ení, $i(x, y, t_l) = i_l$. Jak je vidìt, do této rovnice byla zahrnuta i váhová funkce $\lambda$ a rovnice vyjadøuje oèekávanou hodnotu $\overline{i}$. Tímto zpùsobem je mo¾né sèítat v¹echny barvy v oblasti $U_i$ a vá¾it je podle jejich diference v èase $t_l$ a èase $t_a$ (co¾ je èas, ve kterém byl vybrán poslední vzorek z oblasti $U_i$). Klíèový krok je nyní spoèítat oèekávanou hodnotu $\overline{i}_{a+1}$, která závisí pouze na $\overline{i}$. V~\cite{S06} je to rovnice:
+
+
+\begin{equation}
+	\overline{i}_{a+1} = \dfrac{1}{1 + e^{(t_a - t_{a+1})/s} \cdot w_a} \left[ i_{a+1} + e^{(t_a - t_{a+1}) / s} \cdot w_a \cdot \overline{i}_a \right]
+	\mathrm{.}
+	\label{eq:4_exp_val}
+\end{equation}
+
+
+Pro výpoèet $\overline{i}_{a+1}$ je pak zapotøebí ukládat pouze poslední èas vzorku v dané dla¾dici $t_a$ (\texttt{lastSampleTime}) a poslední celkovou váhu $w_a$ (\texttt{ageWeightSum}). Obì hodnoty je nutné aktualizovat v¾dy po pøidání nového vzorku nastavením $t_a = t_{a+1}$ a $w_a = w_{a+1} = 1 + e^{(t_a - t_{a+1})/s} \cdot w_a$. Kromì oèekávané hodnoty $\overline{i}$ je nutné poèítat i druhou mocninu oèekávané hodnoty $\overline{i^2}$, kterou lze získat ve své inkrementální podobì obdobnì:
+
+
+\begin{equation}
+	\overline{i^2}_{a+1} = \dfrac{1}{1 + e^{(t_a - t_{a+1})/s} \cdot w_a} \left[ i^2_{a+1} + e^{(t_a - t_{a+1}) / s} \cdot w_a \cdot \overline{i^2}_a \right]
+	\mathrm{.}
+	\label{eq:4_sqr_exp_val}
+\end{equation}
+
+
+Výslednou hodnotu pravdìpodobnosti pro danou oblast $\sigma^2(U_{i, a+1})$, kde $a$ je poèet vzorkù v dané oblasti, lze poèítat z pøedchozí pravdìpodobnosti $\sigma^2(U_{i, a})$:
+
+
+\begin{equation}
+	\sigma^2(U_{i, a+1}) = \overline{i^2}_{a+1} - \overline{i}_{a+1}
+	\mathrm{.}
+	\label{eq:4_final_heuristic}
+\end{equation}
+
+
+Zdrojový kód~\ref{src:4_add_sample} ukazuje èinnost aktualizace pravdìpodobnosti po spoèítání ka¾dého nového vzorku. Je implementován jako metoda \texttt{AddSample()} tøídy \texttt{Tile} a odrá¾í vý¹e uvedené postupy. Celý postup pro získání nového vzorku a jeho pøínos pro danou oblast je pak znázornìn v kódu~\ref{src:4_guiding_sampling}, nacházející se v hlavní metodì tøídy \texttt{Sampler}, která je volána z tøídy \texttt{Application}. 
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Pøidá váhu vzorku do pravdìpodobnosti dané oblasti}} \\
+\texttt{\textcolor{keyword}{void} \textcolor{type}{Tile}::\textcolor{method}{AddSample}(\textcolor{keyword}{const} \textcolor{type}{TSample}* \textcolor{keyword}{const} \textcolor{var}{smpl}, \textcolor{keyword}{const} \textcolor{keyword}{float} \&\textcolor{var}{scale})} \\
+\verb+{+ \\
+\verb+    +\texttt{\textcolor{comment}{// Výpoèet váhy pro vá¾ení barvy vzorku}} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{factor} = \textcolor{var}{smpl}->\textcolor{var}{color}.\textcolor{method}{Grayscale}();~~\textcolor{comment}{// barva v odstínech ¹edi}} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{weight} = \textcolor{method}{expf}((\textcolor{var}{lastSampleTime} - \textcolor{var}{smpl}->\textcolor{var}{time}) / \textcolor{var}{scale}) * \textcolor{var}{ageWeightSum};} \\
+\\	
+\verb+    +\texttt{\textcolor{comment}{// Spoèítá oèekávané hodnoty i' and i'\^\{2\} pro daný krok}} \\
+\verb+    +\texttt{\textcolor{var}{expVal} = ((\textcolor{var}{weight} * \textcolor{var}{expVal}) + \textcolor{var}{factor}) / (\textcolor{var}{weight} + \textcolor{number}{1.0});} \\
+\verb+    +\texttt{\textcolor{var}{expValSqr} = ((\textcolor{var}{weight} * \textcolor{var}{expValSqr}) + (\textcolor{var}{factor} * \textcolor{var}{factor})) / (\textcolor{var}{weight} + \textcolor{number}{1.0});} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Aktualizuje pravdìpodobnost oblasti}} \\
+\verb+    +\texttt{\textcolor{var}{variance} = \textcolor{var}{expValSqr} - (\textcolor{var}{expVal} * \textcolor{var}{expVal});~~~~~~~~~\textcolor{comment}{// Steinerùv teorém}} \\
+\verb+    +\texttt{\textcolor{var}{variance} = (\textcolor{var}{variance} <= \textcolor{number}{0.01}) ? \textcolor{number}{0.01} : \textcolor{var}{variance};~~\textcolor{comment}{// O¹etøení vyhladovìní}} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Aktualizuje váhy a vìk pro dal¹í krok}} \\
+\verb+    +\texttt{\textcolor{var}{ageWeightSum} = (\textcolor{var}{weight} + \textcolor{number}{1.0});} \\
+\verb+    +\texttt{\textcolor{var}{lastSampleTime} = \textcolor{var}{smpl}->\textcolor{var}{time};} \\
+\verb+}+
+\end{small}
+
+	\caption{Implementace rovnice~\eqref{eq:3_sigma_fn_3} s vyu¾itím její inkrementální podoby z rovnice~\ref{eq:4_final_heuristic} pro aktualizaci pravdìpodobnosti dané oblasti $U_i$, která je volána po ka¾dém spoèítaném vzorku.}
+	\label{src:4_add_sample}
+\end{program}
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Postup jednotlivých krokù pro øízené vzorkování}} \\
+\texttt{\textcolor{type}{Tile} *\textcolor{var}{currTile} = \textcolor{var}{tileManager}->\textcolor{method}{GetTileWithinRange}();} \\
+\texttt{\textcolor{type}{TSample} *\textcolor{var}{smpl} = \textcolor{var}{currTile}->\textcolor{method}{GetNextSample}();} \\
+\texttt{\textcolor{var}{smpl}->\textcolor{var}{color} = \textcolor{var}{tracer}->\textcolor{method}{RunOnce}(\textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{x}(), \textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{y}());} \\
+\texttt{\textcolor{var}{currTile}->\textcolor{method}{AddSample}(\textcolor{var}{smpl}, \textcolor{number}{500.0});} \\
+\texttt{\textcolor{var}{tileManager}->\textcolor{method}{UpdateVariances}(\textcolor{var}{currTile});} \\
+\texttt{\textcolor{var}{frameBuffer}->\textcolor{method}{SetPixel}(\textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{x}(), \textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{y}(), \textcolor{var}{smpl}->\textcolor{var}{color});}
+\end{small}
+
+	\caption{Tento útr¾ek zdrojového kódu z metody \texttt{GetNextSample()} tøídy \texttt{Sampler} ukazuje poøadí jednotlivých krokù, které je nutné vykonat pro získání po¾adované oblasti $U_i$, výbìr vzorku v dané oblasti, výpoèet barvy vzorku pomocí \emph{raytraceru}, pøidání nového vzorku do oblasti a aktualizaci jeho pravdìpodobnosti. Metoda \texttt{UpdateVariances()} aktualizuje pravdìpodobnosti v¹ech uzlù ve stromì od listu ke koøeni (pro správnou èinnost algoritmu $\tau$, resp. metody \texttt{GetTileWithinRange()}, viz kód~\ref{src:4_get_tile_within_range}). Nová barva vzorku je na závìr nastavena do \emph{frame bufferu} metodou \texttt{SetPixel()}.}
+	\label{src:4_guiding_sampling}
+\end{program}
+
+
+\subsection{Vizuální výsledky}
+\label{ssec:4_gs_visual_results}
+
+V minulé kapitole byl ukázán zdrojový kód pro výbìr oblasti $U_i$ a následná aktualizace pravdìpodobnosti dané oblasti podle právì spoèítané barvy vzorku metodou \texttt{AddSample()} v kódu~\ref{src:4_add_sample}. Jeden parametr této metody v¹ak zatím nebyl blí¾e pøiblí¾en. Jedná se o parametr \texttt{scale}, resp. promìnou $s$ z váhové funkce $\lambda$ z rovnice~\eqref{eq:3_lambda_fn}. Toto je klíèový faktor pro celkovou váhu nového vzorku a udává relevanci vzorku v èase. Díky exponenciální funkci, její¾ argument je v¾dy záporný nebo roven $0$\footnote{Nebo» èas posledního vzorku, který byl vybrán z dané dla¾dice v minulosti je v¾dy men¹í nebo roven èasu aktuálního vzorku, viz kapitola~\ref{ssec:3_heuristic}.}, faktor $s$ omezuje váhu oblasti podle stáøí naposledy vybraného vzorku. Pro vy¹¹í $s$ jsou brány v potaz star¹í vzorky a jejich pøínos je vy¹¹í, naopak pro malé hodnoty $s$ nemají star¹í vzorky ¾ádný pøínos. Pokud je $s = 1$ dochází prakticky k úplnému potlaèení øízeného vzorkování nebo» pouze aktuální vzorek má nìjaký pøínos. Graf na obrázku~\ref{fig:4_lambda_fn} ukazuje závislost stárnutí pixelù podle $s$.
+
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=12cm]{./fig/gs_lambda_fn.pdf}
+	\caption{Váhová funkce $\lambda (t_l - t_a) = e^{(t_l - t_a) / s}$ z rovnice~\eqref{eq:3_lambda_fn} pro rùzné hodnoty faktoru $s$. Z obrázku je patrné, ¾e pro malé hodnoty $s$ jsou star¹í vzorky ménì významné pro celkový pøínos aktuálního vzorku v dané oblasti ne¾ pro vìt¹í hodnoty faktoru $s$. Napø. pro $s = 100$ je pøíspìvek vzorku star¹ího více ne¾ ètvrt vteøiny men¹í ne¾ $10\%$. Na druhou stranu, hodnota $s = 1000$ znamená pøíspìvek vzorkù okolo $10\%$ i pro vzorky staré tøi vteøiny. Prostøední, èervená hodnota $s = 500$ dosahuje nejlep¹ích výsledkù pro testované scény.}
+	\label{fig:4_lambda_fn}
+\end{figure}
+
+
+Vizuální výsledky øízeného vzorkování byly opìt provádìny na tøech známých, demonstraèních scénách a jsou znázornìny na obrázcích~\ref{fig:4_gs_bball} a~\ref{fig:4_gs_earth}. Pro výbìr vzorku z konkrétní oblasti je ji¾ uva¾ována pouze \emph{Haltonova posloupnost}. Cílem bylo vybrat ideální hodnotu faktoru $s$, která byla volena z mno¾iny $\{100, 250, 500, 750, 1\,000\}$, kde hodnota $1\,000$ dává urèitou váhu i jednu vteøinu starým vzorkùm a také zvolit vhodný poèet oblastí v obou smìrech. Jak ji¾ bylo øeèeno, poèet oblastí v ka¾dém smìru musí být sudý, ale poèty v jednotlivých smìrech se mohou li¹it. Uva¾ovány byly poèty oblastí $8\times8$, $32\times32$ a $64\times64$, pøièem¾ výstup byl renderován na $256\times256$ pixelù. Jak je patrné, nejlep¹í výsledky dává faktor $s = 500$ s poètem oblastí $32\times32$ (viz napø. obrázek~\ref{fig:4_gs_bball-5}). 
+
+
+\begin{table}[ht]
+	\centering
+	\begin{tabular}{|l||c|c|c|c|c|}
+		\hline 
+		$8 \times 8$ & $s = 100$ & $s = 250$ & $s = 500$ & $s = 750$ & $s = 1000$ \\ 
+		\hline
+		 
+		\hline 
+		\emph{Skákající míè} & 2,566\% & 2,275\% & \textbf{2,217\%} & 2,225\% & 2,236\% \\ 
+		\hline 
+		\emph{Planeta Zemì} & 5,169\% & \textbf{4,601\%} & 4,617\% & 4,833\% & 4,989\% \\ 
+		\hline 
+		\emph{©achová figurka} & 0,528\% & 0,502\% & 0,477\% & 0,465\% & \textbf{0,459\%} \\ 
+		\hline
+		\hline  
+		$32 \times 32$ & $s = 100$ & $s = 250$ & $s = 500$ & $s = 750$ & $s = 1000$ \\ 
+		\hline
+		
+		\hline  
+		\emph{Skákající míè} & 1,707\% & \textbf{1,494\%} & 1,563\% & 1,603\% & 1,649\% \\ 
+		\hline 
+		\emph{Planeta Zemì} & 3,911\% & \textbf{3,679\%} & 3,977\% & 4,333\% & 4,552\% \\ 
+		\hline 
+		\emph{©achová figurka} & 0,626\% & 0,608\% & 0,575\% & 0,560\% & \textbf{0,547\%} \\ 
+		\hline 
+		\hline 
+		$64 \times 64$ & $s = 100$ & $s = 250$ & $s = 500$ & $s = 750$ & $s = 1000$ \\ 
+		\hline
+		
+		\hline  
+		\emph{Skákající míè} & 2,113\% & \textbf{1,657\%} & 1,667\% & 1,713\% & 1,749\% \\ 
+		\hline 
+		\emph{Planeta Zemì} & 4,873\% & \textbf{4,395\%} & 4,647\% & 4,933\% & 5,126\% \\ 
+		\hline 
+		\emph{©achová figurka} & 0,689\% & 0,665\% & 0,629\% & 0,616\% & \textbf{0,601\%} \\ 
+		\hline 
+	\end{tabular} 	
+	
+	\caption{Výsledky testù pro v¹echny testovací scény, pro v¹echny poèty oblastí a pro rùzné hodnoty faktoru $s$. V prvních dvou scénách dosahuje nejni¾¹í chyby poèet oblastí $32 \times 32$ a faktor $s = 250$. U scény \emph{Planeta Zemì} je vidìt, ¾e pøesto, ¾e nejni¾¹í chyba se objevuje pro $s = 250$, pøi srovnání vizuálního výstupu z obrázkù~\ref{fig:4_gs_earth-4} a~\ref{fig:4_gs_earth-5} je ten druhý lep¹í. Bohu¾el obrázky nejsou nejvhodnìj¹í pro srovnání vizuálních výsledkù a daleko lep¹í pøedstavu lze získat z celé animace z videosekvence. Scéna \emph{©achová figurka} naopak dosahuje ve v¹ech pøípadech nejni¾¹í chyby pro faktor $s = 1\,000$, co¾ je zpùsobeno statickou geometrií scény.}
+	\label{tab:4_gs_results}
+\end{table}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[$8 \times 8, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_08x08-s0100.png} \label{fig:4_gs_bball-1}}
+	\subfloat[$8 \times 8, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_08x08-s0500.png} \label{fig:4_gs_bball-2}} \\
+	\subfloat[$32 \times 32, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_32x32-s0100.png} \label{fig:4_gs_bball-3}}
+	\subfloat[$32 \times 32, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_32x32-s0250.png} \label{fig:4_gs_bball-4}} \\
+	\subfloat[$32 \times 32, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_32x32-s0500.png} \label{fig:4_gs_bball-5}}
+	\subfloat[$32 \times 32, s = 1000$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_32x32-s1000.png} \label{fig:4_gs_bball-6}} \\
+	\subfloat[$64 \times 64, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_64x64-s0100.png} \label{fig:4_gs_bball-7}}
+	\subfloat[$64 \times 64, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_64x64-s0500.png} \label{fig:4_gs_bball-8}}
+	
+	\caption{Výstup øízeného vzorkování pro scénu \emph{skákající míè}. Obrázky ukazují rozdílné výsledky jak pro rùzný poèet oblastí, tak pro rùzné hodnoty faktoru $s$ (viz obrázek~\ref{fig:4_lambda_fn}). Na ka¾dé dvojici obrázkù z prvních ¹esti je vlevo zobrazen aktuální výstup a vpravo pak rozlo¾ení pravdìpodobnosti pro výbìr dané oblasti v dal¹ím kroku (zobrazeno èervenou barvou pro vyniknutí rozdílù), kde maximální pravdìpodobnost má hodnotu $1,0$. Nejlep¹ích výsledkù je dosa¾eno pøi rozli¹ení $32 \times 32$ pro faktor $s = 250$ nebo $s = 500$.}
+	\label{fig:4_gs_bball}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[$8 \times 8, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_08x08-s0100.png} \label{fig:4_gs_earth-1}}
+	\subfloat[$8 \times 8, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_08x08-s0500.png} \label{fig:4_gs_earth-2}} \\
+	\subfloat[$32 \times 32, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_32x32-s0100.png} \label{fig:4_gs_earth-3}}
+	\subfloat[$32 \times 32, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_32x32-s0250.png} \label{fig:4_gs_earth-4}} \\
+	\subfloat[$32 \times 32, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_32x32-s0500.png} \label{fig:4_gs_earth-5}}
+	\subfloat[$32 \times 32, s = 1000$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_32x32-s1000.png} \label{fig:4_gs_earth-6}} \\
+	\subfloat[$64 \times 64, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_64x64-s0100.png} \label{fig:4_gs_earth-7}}
+	\subfloat[$64 \times 64, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_64x64-s0500.png} \label{fig:4_gs_earth-8}}
+	\caption{Výstup pro scénu \emph{Planeta Zemì}. Vlevo je opìt aktuální výstup a napravo pak rozlo¾ení pravdìpodobností. Jak je patrné, by» je tato scéna velmi jednoduchá, díky textuøe na kouli je její zobrazení velmi slo¾ité a výstup zde trpí daleko více ne¾ u první scény. Pøesto lze opìt konstatovat, ¾e ideální poèet oblastí je $32 \times 32$ a faktor $s = 500$. Jeliko¾ je tato scéna velmi dynamická a mìní se veliká èást projekèní roviny, malý poèet oblastí jednodu¹e nestaèí, naopak vy¹¹í poèet oblastí více obraz drolí.}
+	\label{fig:4_gs_earth}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[$8 \times 8, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_08x08-s0100.png} \label{fig:4_gs_pawn-1}}
+	\subfloat[$8 \times 8, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_08x08-s0500.png} \label{fig:4_gs_pawn-2}} \\
+	\subfloat[$32 \times 32, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_32x32-s0100.png} \label{fig:4_gs_pawn-3}}
+	\subfloat[$32 \times 32, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_32x32-s0250.png} \label{fig:4_gs_pawn-4}} \\
+	\subfloat[$32 \times 32, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_32x32-s0500.png} \label{fig:4_gs_pawn-5}}
+	\subfloat[$32 \times 32, s = 1000$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_32x32-s1000.png} \label{fig:4_gs_pawn-6}} \\
+	\subfloat[$64 \times 64, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_64x64-s0100.png} \label{fig:4_gs_pawn-7}}
+	\subfloat[$64 \times 64, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_64x64-s0500.png} \label{fig:4_gs_pawn-8}}
+
+	\caption{Vizuální výsledky pro scénu \emph{©achová figurka}. Pro øízené vzorkování je toto velmi slo¾itá scéna a pøesto, ¾e podle výsledkù testù dosahuje nejmen¹í chyby poèet oblastí $8 \times 8$, obrázky jasnì ukazují ¹patnì osvìtlené plochy, které odpovídají jednotlivým oblastem. Nejvìt¹í prioritu toti¾ dostávají oblasti, které jsou na okrajích figurky a oblasti uvnitø, kde dochází k pohybu stínu mají prioritu malou. Jako lep¹í øe¹ení se rovnì¾ ukazuje nastavení vy¹¹í hodnoty faktoru $s$. To je zpùsobeno tím, ¾e pixely stárnou pomaleji, nebo» nedochází k ¾ádným pohybùm geometrie, ale pouze stínu po povrchu figurky.}
+	\label{fig:4_gs_pawn}
+\end{figure}
+
+
+\section{Rekonstrukce}
+\label{sec:4_reconstruction}
+
+V~\cite{DWWL05} je celá rekonstrukce oddìlená od vlastní implementace a pøesunuta na samostatnou výpoèetní jednotku, na grafickou kartu. Tímto krokem je sice výraznì zvý¹en výpoèetní výkon, ale na druhou stranu rovnì¾ poru¹en základní princip \emph{bezsnímkového renderování}, které je nyní realizováno \uv{snímkovì}, nebo» rekonstruktor musí èekat na získání barvy nového vzorku z raytraceru a a¾ pøed zobrazením nového snímku na obrazovce je celá rekonstrukce provedena. Jeliko¾ se tato práce zamìøuje na \uv{pravé} \emph{bezsnímkové rendování}, rekonstrukce byla implementována jakou souèást hlavní aplikace a její celý kód le¾í ve vzorkovaèi. 
+
+Samotná implementace byla rozdìlena na tøi èásti: a) aproximace prostorových a èasových derivací (viz podkapitola~\ref{ssec:4_rc_derivatives}), b) výpoèet vzorkovací frekvence $R(U_i)$ (viz podkapitola~\ref{ssec:4_rc_sampling_rate}) a za c) samotný rekonstrukèní algoritmus (viz podkapitola~\ref{ssec:4_rc_reconstruction}).
+
+
+\subsection{Aproximace smìrových derivací, èasová derivace}
+\label{ssec:4_rc_derivatives}
+
+Prvním problémem pøi implementaci rekonstrukce obrazu v \emph{bezsnímkovém rendereru} je výpoèet derivací $d_x$, $d_y$ a $d_t$ z rovnice~\eqref{eq:3_derivatives}, pomocí nich¾ pak lze odvodit rozmìry rekonstrukèního filtru $e_x$, $e_y$ a $e_t$ z rovnice~\ref{eq:3_extents_1b}. Samotný výpoèet derivací v¹ak není zcela triviální zále¾itost a v poèítaèové grafice derivace nebývají poèítány pøímo, ale aproximují se. V~\cite{DWWL05} aproximují prostorové derivace $d_x$ a $d_y$ výbìrem ètyø nových vzorkù, které le¾í na sousedních pozicích okolo aktuální vzorku horizontálnì a vertikálnì, pøi rekonstrukci ka¾dého vzorku tedy vytváøejí køí¾ (tzv. \emph{crosshair}) z $5$ vzorkù. Pro výpoèet èasové derivace berou dal¹í, ¹estý, vzorek na úplnì nové pozici v èase. Na v¹echny vzorky jsou pak aplikovány diferenèní filtry pro správnou aproximaci derivací. Tento pøístup je jistì správný, av¹ak èasovì velmi nároèný ($5$krát je volán \emph{raytracer} pro výpoèet barvy pomocných vzorkù).
+
+Naopak v~\cite{S06} je postup velmi zjednodu¹ený. Pro aproximaci derivací je vyu¾it \emph{Sobelùv hranový operátor} na aktuální obsah bufferu v odstínech ¹edi. Tento postup byl zvolen i v této práci. Prostorové derivace jsou poèítány pomocí konvoluèních masek:
+
+
+\begin{equation}
+	s_x = \dfrac{1}{8}
+	\left(
+    	\begin{array}{rrr}
+	    	-1 & 0 & 1 \\
+	    	-2 & 0 & 2 \\
+	    	-1 & 0 & 1
+	    \end{array}
+	\right) \quad \mathrm{a} \quad s_y = \dfrac{1}{8}
+	\left(
+    	\begin{array}{rrr}
+	    	1 & 2 & 1 \\
+	    	0 & 0 & 0 \\
+	    	-1 & -2 & -1
+	    \end{array}
+	\right)
+	\mathrm{.}
+	\label{eq:4_sobel_operators}
+\end{equation}
+
+
+\noindent Tento pøístup je nejen jednoduchý, ale rovnì¾ velmi rychlý. Pøevod barev do odstínù ¹edi je provádìn pomocí rovnice~\eqref{eq:3_yuv_grayscale}. Výpoèet prostorových derivací je realizován aplikováním pøíslu¹né masky na osmi-okolí pixelu, ze kterého byl vybrán aktuální vzorek. Èasovou derivaci lze získat obdobnì. Nejprve je v¹ak získat rozdíl barev v aktuálním a posledním platném èase, ideálnì opìt z osmi-okolí daného pixelu. A na tyto hodnoty pak lze aplikovat \emph{binomiální filtr} $b_t$:
+
+
+\begin{equation}
+	b_t = \dfrac{1}{4}
+	\left(
+    	\begin{array}{rrr}
+	    	1 & 2 & 1
+	    \end{array}
+	\right) \quad \longrightarrow \quad b_t = \dfrac{1}{16}
+	\left(
+    	\begin{array}{rrr}
+	    	1 & 2 & 1 \\
+	    	2 & 4 & 2 \\
+	    	1 & 2 & 1
+	    \end{array}
+	\right)
+	\mathrm{.}
+	\label{eq:4_binomial_filter}
+\end{equation}
+
+
+Pro výpoèet èasové derivace je nutné uchovávat dvì hodnoty, ve dvou pomocných bufferech o rozmìrech $M \times N$ pixelù a støídavì v nich barvy aktualizovat podle barvy aktuálního vzorku, kde v¾dy jeden buffer (nikoliv nutnì první z nich) na pozici $(x, y)$ obsahuje aktuální barvu a druhý buffer obsahuje na stejné pozici poslední platnou barvu. Ta bude pøi dal¹í aktualizaci daného pixelu pøepsána novou, budoucí platnou barvou.
+
+Jak se ale ukázalo, náhodný výbìr vzorkù napøíè projekèní rovinou, resp. napøíè jedním pixelem (pozice vzorku dosud nebyla nijak omezena a mohla le¾et kdekoliv uvnitø pixelu) není pro výpoèet derivací úplnì vhodný. Lep¹í a tím stabilnìj¹í variantou je zvolit pozici vzorku tak, aby le¾ela v¾dy v levém horním rohu ka¾dého pixelu. Jeliko¾ je v¹ak jedním z po¾adavkù na rekonstrukci obrazu provádìní \emph{anti-aliasingu} tam, kde je scéna del¹í dobu statická, znamená to poèítat vzorky dva: první na libovolné pozici uvnitø pixelu (právì pro øe¹ení \emph{anti-aliasingu}) a druhý v¾dy v levém horním rohu pixelu (pro výpoèet prostorových a èasových derivací).
+
+
+\subsection{Výpoèet vzorkovací frekvence $R(U_i)$}
+\label{ssec:4_rc_sampling_rate}
+
+Druhým krokem pøed vlastní rekonstrukci je výpoèet objemu rekonstrukèního filtru $V_s$ (viz rovnice~\ref{eq:3_volume_s}) a tím pádem i výpoèet vzorkovací frekvence $R(U_i)$. Ta byla v kapitole~\ref{ssec:3_filter_extents} definována jako poèet vzorkù aktualizovaných v oblasti $U_i$ v èasovém intervalu $<t_h, t>$, kde $t_h$ oznaèuje poslední platný èas. Vzorkovací frekvenci lze tedy spoèítat podle rovnice:
+
+
+\begin{equation}
+	R(U_i) = \vert S \vert \mathrm{,} \quad \mathrm{kde} \quad 
+	S = \{i(x, y, t_k) \vert t_k > t_h\}
+	\mathrm{,}
+	\label{eq:4_sampling_rate}
+\end{equation}
+
+
+\noindent kde $m$ udává ¹íøku oblasti $U_i$ v pixelech a $n$ pak její vý¹ku. Lze si pov¹imnout, ¾e v okam¾iku, kde $R(U_i) > m \cdot n$ dochází automaticky k supersamplingu obrazu a tedy k \emph{anti-alisingu}.
+
+Výpoèet vzorkovací frekvence je realizován pomocí kódu~\ref{src:4_update_sampling_rate}, který vyu¾ívá pomocného pole \texttt{recentSamplesTime}. V nìm jsou za sebou ulo¾eny èasy v¹ech vzorkù vybraných v dané oblasti. Dále je pou¾it ukazatel na index posledního platného vzorku \texttt{lastValidSampleIdx}. Poèet v¹ech platných vzorkù je pak poèet vzorkù od ukazatele \texttt{lastValidSampleIdx} a koncem pole. Ten je uchován v promìnné \texttt{validSamplesNum}. Po pøidání nového vzorku do oblasti metodou \texttt{AddSample()} (viz kód~\ref{src:4_add_sample}) jsou aktualizovány èítaèe a pomocí metody \texttt{UpdateSamplingRate()} tøídy \texttt{Tile} je aktualizován poèet platných vzorkù.
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Aktualizuje poèet platných vzorkù v oblasti}} \\
+\texttt{\textcolor{keyword}{void} \textcolor{type}{Tile}::\textcolor{method}{UpdateSamplingRate}(\textcolor{keyword}{const} \textcolor{keyword}{unsigned} \&\textcolor{var}{timeSpan}, \textcolor{keyword}{const} \textcolor{keyword}{unsigned} \&\textcolor{var}{now})} \\
+\verb+{+ \\
+\verb+    +\texttt{\textcolor{keyword}{unsigned} \textcolor{var}{i} = \textcolor{var}{lastValidSampleIdx};} \\
+\verb+    +\texttt{\textcolor{keyword}{while}(\textcolor{var}{validSamplesNum} > \textcolor{number}{0} \&\& (\textcolor{var}{now} - \textcolor{var}{recentSamplesTime}[\textcolor{var}{i}]) > \textcolor{var}{timeSpan})} \verb+{+ \\
+\verb+        +\texttt{\textcolor{var}{validSamplesNum}--;} \\
+\verb+        +\texttt{\textcolor{var}{i}++;} \\
+\verb+    }+ \\
+\verb+    +\texttt{\textcolor{var}{lastValidSampleIdx} = \textcolor{var}{i};} \\
+\verb+}+
+\end{small}
+
+	\caption{Aktualizace vzorkovací frekvence $R(U_i)$.}
+	\label{src:4_update_sampling_rate}
+\end{program}
+
+
+Promìnná \texttt{now} obsahuje aktuální èas a promìnná \texttt{timeSpan} èasový úsek, po který jsou vzorky platné, tedy z pøihlédnutím ke kapitole~\ref{ssec:3_filter_extents} napø. $1\,000$ milisekund. Jak ji¾ bylo øeèeno, aktualizace poètu platných vzorkù mìla být provádìna v¾dy po pøidání nového vzorku do oblasti. Jeliko¾ je v¹ak iterování nad polem èasovì nároèná operace, je metoda \texttt{UpdateSamplingRate()} volána v¾dy po vykreslení aktuálního snímku na obrazovku, èili $25$krát za vteøinu (podle nastavení aplikace). Na stabilitu ani výsledky to v¹ak nemá ¾ádný viditelný dopad.
+
+
+\subsection{Øe¹ení \emph{anti-aliasingu}}
+\label{ssec:4_rc_antialiasing}
+
+Pro dosa¾ení \emph{anti-aliasingu} obecnì, napø. pomocí \emph{raytraceru}, je nutné volit pozici vzorkù tak, aby rovnomìrnì pokryly i plochu jednoho pixelu. Ten je rozdìlen na sub-pixely a vzorek je pak brán z ka¾dého sub-pixelu. Pro potøeby bezsnímkového rendereru je postup podobný. Není v¹ak ¾ádoucí poèítat hodnoty v¹ech sub-pixelù najednou a pak je prùmìrovat, jako u klasického \emph{raytracingu}. Naopak je po¾adováno získání \emph{anti-aliasingu} zadarmo tam, kde je scéna del¹í dobu statická. Proto je i nadále poèítán v¾dy jeden vzorek na pixel, který le¾í na libovolné pozici uvnitø pixelu a ten je dále vá¾en èasovým filtrem $r_t$ (viz rovnice~\ref{eq:3_temp_filter}).
+
+Jak se ukázalo, libovolná pozice vzorku uvnitø pixelu není vyhovující. Lep¹ím øe¹ením je zvolit nìkolik fixních pozic uvnitø pixelu jako \emph{offset} od jeho levého horního rohu. Tyto offsety je mo¾né zvolit náhodnì nebo pomocí napø. \emph{Haltonovi posloupnosti}. Pro výbìr offsetu pro konkrétní pixel $(x, y)$ je pak implementován pomocný buffer ukazatelù opìt o rozmìrech $M \times N$, kde ka¾dá hodnota udává ukazatel do pole offsetù. Pøi aktualizaci konkrétního pixelu je pak zvolen pøíslu¹ný offset, který je pøièten k pozici pixelu a ukazatel v pomocném bufferu posunut na dal¹í offset. Pøi dal¹í aktualizaci tého¾ pixelu pak bude vybrán nový offset. A jeliko¾ je poèet vzorkù na pixel $s_d$ --- tedy velikost pole s offsety --- koneèný, jsou ukazatele posouvány cyklicky od $0$ do $s_d - 1$. Tímto principem je zaji¹tìn správný výbìr pozice vzorku v oblasti jednoho pixelu a dosa¾eno lep¹ích výsledkù pøi potlaèení aliasù v obraze tam, kde je scéna statická.
+
+Aby bylo dosa¾eno lep¹ích výsledkù, ukázalo se jako vhodnìj¹í rozdìlit rekonstrukci a výpoèet \emph{anti-aliasingu} do dvou èástí. Tam, kde je scéna statická nedochází v èase k ¾ádným zmìnám. Tedy èasová derivace $d_t$ se blí¾í k nule. Bohu¾el navr¾ený rekonstrukèní algoritmus (viz dále) si s tímto faktorem nedovede úplnì dobøe poradit. Proto v tìchto pøípadech je lep¹í èasový filtr $r_t$, resp. jeho faktor $s$, nastavit ruènì na nìjakou vìt¹í hodnotu. Nebo» tam, kde je scéna del¹í dobu statická, mají i vzorky staré napø. $1,5$ vteøiny stále vysokou váhu a tím vìt¹í èástí pøispìjí svojí barvou k novému vzorku. Jeho barva se bude li¹it výraznì pouze na hranách, èím¾ dojde k jejich vyhlazení. Celá idea je nastínìna v kódu~\ref{src:4_anti-aliasing}.
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Pokud je èasová derivace dostateènì velká, provede se klasická rekonstrukce}} \\
+\texttt{\textcolor{keyword}{if}(\textcolor{var}{dT} > \textcolor{number}{0.0001})} \verb+{+ \\
+\verb+    +\texttt{\textcolor{comment}{// vlastní rekonstrukce}} \\
+\verb+}+ \\
+\texttt{\textcolor{comment}{// V opaèném pøípadì jsou váhy nastaveny ruènì a provádí se anti-aliasing}} \\
+\texttt{\textcolor{keyword}{else}} \verb+{+ \\
+\verb+    +\texttt{\textcolor{method}{DrawSample}(\textcolor{var}{x}, \textcolor{var}{y}, \textcolor{var}{smpl}, \textcolor{number}{1500.0f}, \textcolor{number}{1.0f});} \\
+\verb+    +\texttt{\textcolor{var}{tile}->\textcolor{method}{AddSample}(\textcolor{var}{smpl}, \textcolor{number}{500.0f});} \\
+\verb+    +\texttt{\textcolor{method}{UpdateVariances}(\textcolor{var}{tile});} \\
+\verb+}+
+\end{small}
+
+	\caption{Rozdìlení rekonstrukèního algoritmu na dvì èásti. Pokud se souèasná èasová derivace na pozici $(x, y)$ blí¾í nule, je provedeno ruèní nastavení vah a faktoru $s$ a øe¹en \emph{anti-aliasing}. V opaèném pøípadì je provedena rekonstrukce podle zdrojového kódu~\ref{src:4_reconstruction}.}
+	\label{src:4_anti-aliasing}
+\end{program}
+
+
+\subsection{Rekonstrukèní algoritmus}
+\label{ssec:4_rc_reconstruction}
+
+Vlastní rekonstrukèní algoritmus byl v~\cite{DWWL05} implementován dvìma rozdílnými zpùsoby. První zpùsob spoèíval v rekonstrukci celého obrazu po pøidání jednoho vzorku, tedy barvy v¹ech pixelù v obraze byly kumulovány a vá¾eny a jejich pøínos byl pøipoèten k nové barvì právì aktualizovaného pixelu. Tento zpùsob je oznaèován jako \emph{gatter} a jak je na první pohled patrné, je èasovì velmi nároèný. Druhý pøístup, oznaèovaný jako \emph{scatter}, naopak ¹íøí barvu aktualizovaného pixelu do jeho nejbli¾¹ího okolí, k jeho sousedùm. Jeliko¾ druhý pøístup iteruje pouze nad malou oblastí obrazu je podstatnì rychlej¹í. A z toho dùvodu byl zvolen a implementován~\footnote{Ostatnì celá kapitola~\ref{sec:3_reconstruction} k tomu pøístupu smìøovala.}.
+
+Pro urèení nejbli¾¹ího okolí okolo aktualizovaného pixelu je vyu¾ito právì rozmìrù rekonstrukèního filtru $e_x$, $e_y$ a $e_t$. Ty byly zvoleny tak, aby v tìch èástech obrazu, kde jsou derivace veliké, byly malé a naopak. To znamená, ¾e pokud je v obraze nalezena nìjaká hrana (a» u¾ prostorová nebo èasová) bude filtr úzký a rekonstrukce se bude soustøedit pouze na malou èást obrazu. Tam kde je barva obrazu homogenní bude filtr ¹iroký a rekonstrukce zasáhne ¹iroké okolí pixelu. A jeliko¾ byl zvolen \emph{Gaussùv filtr}, váha barvy pixelu bude klesat s jeho vzdáleností v prostorové doménì (filtr $r_s$, viz rovnice~\eqref{eq:3_spatial_filter_1b}) a se zvy¹ujícím se vìkem daného pixelu v èasové doménì (filtr $r_t$, viz rovnice~\eqref{eq:3_temp_filter}).
+
+Aby byla samotná rekonstrukce co nejefektivnìj¹í, byla vyu¾ita rovnice z~\cite{S06}:
+
+
+\begin{equation}
+	i(x_k, y_k, t) = \dfrac{1}{w} \left( r_s(i(x, y, t)) \cdot i(x, y, t) + r_t(t_k) \cdot w_k \cdot i(x_k, y_k, t_k) \right)
+	\mathrm{,}
+	\label{eq:4_full_reconstruction}
+\end{equation}
+
+\noindent kde
+
+\begin{displaymath}
+	w = r_s(i(x, y, t)) + r_t(t_k) \cdot w_k
+	\mathrm{,}
+\end{displaymath}
+
+\noindent kde $w_k$ oznaèuje poslední celkovou váhu obou filtrù a $t_k$ minulý èas aktualizace pixelu. Tato rovnice pracuje inkrementálním zpùsobem (podobnì jako pøi výpoètu oèekávaných hodnot pro odchylku pøi výbìru oblasti $U_i$) a vá¾í pùvodní barvu pixelu aktualizovanou v minulosti s aktuální barvou vzorku podle vzdálenosti støedu pixelu od aktuálního vzorku a rozdílu jejich stáøí. Rovnice v sobì nese oba rekonstrukèní filtry $r_s$ a $r_t$. Díky této rovnici není nutné uchovávat v pamìti v¹echny staré vzorky a tím ¹etøí mnoho výkonu. Jediné, co je nutné ukládat pro vá¾ení je celková váha obou filtrù $w_k$ a poslední èas aktualizace pixelu a to pro v¹echny pixely v obraze. To je implementováno pomocí dvou bufferù opìt o rozmìrech $M \times N$, kde na ka¾dé pozici je ulo¾ena pøíslu¹ná hodnota, která je pravidelnì aktualizována.
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Pøidá novou barvu do frame bufferu, pøedtím na ni aplikuje váhy}} \\
+\texttt{\textcolor{keyword}{void} \textcolor{type}{Sampler}::\textcolor{method}{DrawSample}(\textcolor{keyword}{int} \&\textcolor{var}{x}, \textcolor{keyword}{int} \&\textcolor{var}{y}, \textcolor{type}{TSample}* \textcolor{var}{smpl}, \textcolor{keyword}{float} \&\textcolor{var}{scale}, \textcolor{keyword}{float} \&\textcolor{var}{sw})} \\
+\verb+{+ \\
+\verb+    +\texttt{\textcolor{keyword}{unsigned} \textcolor{var}{index} = \textcolor{var}{x}+\textcolor{var}{y}*\textcolor{var}{resolution}.\textcolor{method}{x}();} \\
+\verb+    +\texttt{\textcolor{type}{Color} \textcolor{var}{clr} = \textcolor{var}{imageBuffer}->\textcolor{method}{GetPixel}(\textcolor{var}{x}, \textcolor{var}{y});} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{tw} = \textcolor{method}{expf}((\textcolor{var}{lastTimes}[\textcolor{var}{index}] - \textcolor{var}{smpl}->\textcolor{var}{age}) / \textcolor{var}{scale}) * \textcolor{var}{ageWeights}[\textcolor{var}{index}];} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Vá¾í novou barvu vzorku s pùvodní barvou pixelu pro ka¾dou slo¾ku oddìlenì}} \\
+\verb+    +\texttt{\textcolor{var}{clr}.\textcolor{var}{red} = ((\textcolor{var}{sw}*\textcolor{var}{smpl}->\textcolor{var}{color}.\textcolor{var}{red}) + (\textcolor{var}{tw}*\textcolor{var}{clr}.\textcolor{var}{red})) / (\textcolor{var}{sw} + \textcolor{var}{tw});} \\
+\verb+    +\texttt{\textcolor{var}{clr}.\textcolor{var}{green} = ((\textcolor{var}{sw}*\textcolor{var}{smpl}->\textcolor{var}{color}.\textcolor{var}{green}) + (\textcolor{var}{tw}*\textcolor{var}{clr}.\textcolor{var}{green})) / (\textcolor{var}{sw} + \textcolor{var}{tw});} \\
+\verb+    +\texttt{\textcolor{var}{clr}.\textcolor{var}{blue} = ((\textcolor{var}{sw}*\textcolor{var}{smpl}->\textcolor{var}{color}.\textcolor{var}{blue}) + (\textcolor{var}{tw}*\textcolor{var}{clr}.\textcolor{var}{blue})) / (\textcolor{var}{sw} + \textcolor{var}{tw});} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Aktualizuje váhy a nastaví nový èas aktualizace pixelu}} \\
+\verb+    +\texttt{\textcolor{var}{ageWeights}[\textcolor{var}{index}] = \textcolor{var}{sw} + \textcolor{var}{tw};} \\
+\verb+    +\texttt{\textcolor{var}{lastTimes}[\textcolor{var}{index}] = \textcolor{var}{smpl}->\textcolor{var}{age};} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Nastaví novou barvu pixelu (x, y)}} \\
+\verb+    +\texttt{\textcolor{var}{imageBuffer}->\textcolor{method}{SetPixel}(\textcolor{var}{x}, \textcolor{var}{y}, \textcolor{var}{clr});} \\
+\verb+}+
+\end{small}
+
+	\caption{Metoda \texttt{DrawSample()} tøídy \texttt{Sampler}, která se stará o vá¾ení nové barvy vzorku prostorovou vahou (\texttt{sw}) a pùvodní hodnoty pixelu èasovou vahou (\texttt{tw}). Po pøepoètu v¹ech barevných slo¾ek je aktualizována suma vah (buffer \texttt{ageWeights}) a poslední èas aktualizace daného pixelu (buffer \texttt{lastTimes}. Jak je vidìt, metoda \texttt{DrawSample()} je velmi podobná metodì \texttt{AddSample()} objektu \texttt{Tile} z kódu~\ref{src:4_add_sample}.}
+	\label{src:4_draw_sample}
+\end{program}
+
+
+Ukázky zdrojových kódù~\ref{src:4_reconstruct} a~\ref{src:4_draw_sample} ukazují vlastní implementaci rovnice~\eqref{eq:4_full_reconstruction} ta nahoøe. První z nich ukazuje výpoèet rozmìrù filtru pomocí derivací a jeho objemu a následnou iteraci nad okolními pixely a výpoèet prostorové váhy \texttt{spatialWeight} pomocí Gaussova filtru (viz rovnice~\eqref{eq:3_spatial_filter_1b}). Druhý kód ukazuje implementaci èasového filtru $r_t$, aktualizaci hodnoty konkrétního pixelu vá¾ením pùvodní a nové barvy pixelu a aktualizaci obou pomocných bufferù pøedstavených vý¹e. Nutno poznamenat, ¾e výpoèet barvy je nutné realizovat pro ka¾dou barevnou slo¾ku oddìlenì. 
+
+
+\begin{program}[ht]
+\begin{small}
+\texttt{\textcolor{comment}{// Spoèítá derivace v jednotlivých smìrech}} \\
+\texttt{\textcolor{method}{CalculateDerivatives}(\textcolor{var}{x}, \textcolor{var}{y}, \textcolor{var}{dX}, \textcolor{var}{dY}, \textcolor{var}{dT});} \\
+\\
+\texttt{\textcolor{comment}{// Pøedpøipraví rozsahy filtru pro dal¹í výpoèet}} \\	
+\texttt{\textcolor{keyword}{float} \textcolor{var}{ex} = \textcolor{number}{1.0} - \textcolor{var}{dX};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{ey} = \textcolor{number}{1.0} - \textcolor{var}{dY};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{et} = \textcolor{number}{1.0} - \textcolor{var}{dT};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{eSum} = \textcolor{var}{ex} + \textcolor{var}{ey} + \textcolor{var}{et};} \\
+\\
+\texttt{\textcolor{comment}{// Spoèítá objem filtru podle V\_s = 1 / R(U\_i) a upraví rozmìry filtru}} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{Vs} = \textcolor{var}{pixelsPerTile} / (\textcolor{keyword}{float})(\textcolor{var}{tile}->\textcolor{method}{GetValidSamplesNum}() + \textcolor{number}{1});} \\
+\texttt{\textcolor{var}{ex} *= (\textcolor{var}{Vs} / \textcolor{var}{eSum}); \textcolor{var}{ey} *= (\textcolor{var}{Vs} / \textcolor{var}{eSum}); \textcolor{var}{et} *= (\textcolor{var}{Vs} / \textcolor{var}{eSum});} \\
+\\
+\verb+    +\texttt{\textcolor{comment}{// Pøipraví konstanty pro vlastní rekonstrukci}} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{scaleFactor} = \textcolor{number}{100.0} * \textcolor{var}{et};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{gaussFactor} = \textcolor{number}{9.0} / (\textcolor{number}{2.0} * \textcolor{type}{M\_PI} * \textcolor{var}{ex} * \textcolor{var}{ey});} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{exSqr} = \textcolor{var}{ex} * \textcolor{var}{ex};} \\
+\texttt{\textcolor{keyword}{float} \textcolor{var}{eySqr} = \textcolor{var}{ey} * \textcolor{var}{ey};} \\
+\\
+\texttt{\textcolor{comment}{// Pøidá nový vzorek do oblasti a aktualizuje pravdìpodobnosti skrze celý strom}} \\
+\texttt{\textcolor{var}{currTile}->\textcolor{method}{AddSample}(\textcolor{var}{smpl}, \textcolor{var}{scaleFactor});} \\
+\texttt{\textcolor{var}{tileManager}->\textcolor{method}{UpdateVariances}(\textcolor{var}{currTile});} \\
+\\
+\texttt{\textcolor{comment}{// Pokryje v¹echny pixely v x-ové ose od -e\_x do e\_x}} \\
+\texttt{\textcolor{keyword}{for}(\textcolor{keyword}{int} \textcolor{var}{dx} = -(\textcolor{keyword}{int})\textcolor{var}{ex}; \textcolor{var}{dx} <= (\textcolor{keyword}{int})\textcolor{var}{ex}; \textcolor{var}{dx}++)} \verb+{+ \\
+\verb+    +\texttt{\textcolor{keyword}{int} \textcolor{var}{cx} = \textcolor{var}{x} + \textcolor{var}{dx};} \\
+\verb+    +\texttt{\textcolor{keyword}{if}(\textcolor{var}{cx} < \textcolor{number}{0} || \textcolor{var}{cx} >= (\textcolor{keyword}{int})\textcolor{var}{resolution}.\textcolor{method}{x}()) \textcolor{keyword}{continue};} \\
+\verb+    +\texttt{\textcolor{keyword}{float} \textcolor{var}{tx} = \textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{x}() - \textcolor{var}{dx} - \textcolor{number}{0.5};} \\
+\verb+    +\texttt{\textcolor{var}{tx} = (\textcolor{var}{tx}*\textcolor{var}{tx}) / \textcolor{var}{exSqr};} \\
+\\				
+\verb+    +\texttt{\textcolor{comment}{// Pokryje v¹echny pixely v y-ové ose od -e\_y do e\_y}} \\
+\verb+    +\texttt{\textcolor{keyword}{for}(\textcolor{keyword}{int} \textcolor{var}{dy} = -(\textcolor{keyword}{int})\textcolor{var}{ey}; \textcolor{var}{dy} <= (\textcolor{keyword}{int})\textcolor{var}{ey}; \textcolor{var}{dy}++)} \verb+{+ \\
+\verb+        +\texttt{\textcolor{keyword}{int} \textcolor{var}{cy} = \textcolor{var}{y} + \textcolor{var}{dy};} \\
+\verb+        +\texttt{\textcolor{keyword}{if}(\textcolor{var}{cy} < \textcolor{number}{0} || \textcolor{var}{cy} >= (\textcolor{keyword}{int})\textcolor{var}{resolution}.\textcolor{method}{y}()) \textcolor{keyword}{continue};} \\
+\verb+        +\texttt{\textcolor{keyword}{float} \textcolor{var}{ty} = \textcolor{var}{smpl}->\textcolor{var}{pos}.\textcolor{method}{y}() - \textcolor{var}{dy} - \textcolor{number}{0.5};} \\
+\verb+        +\texttt{\textcolor{var}{ty} = (\textcolor{var}{ty}*\textcolor{var}{ty}) / \textcolor{var}{eySqr};} \\
+\\						
+\verb+        +\texttt{\textcolor{comment}{// Spoèítá prostorou váhu filtru a vykreslí pixel}} \\
+\verb+        +\texttt{\textcolor{keyword}{float} \textcolor{var}{spatialWeight} = \textcolor{var}{gaussFactor} * \textcolor{method}{expf}(-\textcolor{number}{4.5} * (\textcolor{var}{tx} + \textcolor{var}{ty}));} \\
+\verb+        +\texttt{\textcolor{method}{DrawSample}(\textcolor{var}{cx}, \textcolor{var}{cy}, \textcolor{var}{smpl}, \textcolor{var}{scaleFactor}, \textcolor{var}{spatialWeight});} \\
+\verb+    }+ \\
+\verb+}+
+\end{small}
+
+	\caption{Ukázka algoritmu provádìjícího vlastní rekonstrukci. Nejprve jsou vypoèítány absolutní hodnoty derivací v jednotlivých smìrech podle rovnic~\eqref{eq:4_sobel_operators} a~\eqref{eq:4_binomial_filter} a z nich jsou získány rozmìry filtru podle rovnice~\eqref{eq:3_extents_1b}. Následuje pøidání vzorku do vybrané oblasti a pøepoèítání pravdìpodobností v¹ech oblastí. Poté jsou aktualizovány v¹echny pixely, které pokrývají rozmìry filtru. Prostorová váha udává vzdálenost nového vzorku od støedu ka¾dého filtrovaného pixelu. Samotné zapsání nové barvy pixelu a jeho vá¾ení èasovým filtrem je provádìno metodou \texttt{DrawSample()} zobrazené v kódu~\ref{src:4_draw_sample}.}
+	\label{src:4_reconstruct}
+\end{program}
+
+
+\subsection{Vizuální výsledky}
+\label{ssec:4_rc_visual_results}
+
+Jak ji¾ bylo øeèeno, implementace rekonstrukce je obsa¾ena pøímo ve tøídì \texttt{Sampler} a není nijak oddìlena na jinou výpoèetní jednotku jako tomu je u implementace z~\cite{DWWL05}. Proto bylo nutné se soustøedit zejména na efektivitu výpoètu. Z toho dùvodu není rekonstruovaný úplnì ideální a lze v nìm stále zaznamenat drobné artefakty. Ty v¹ak klesají v závislosti na poètu aktualizovaných pixelù v jednom kroku simulace. Pro vy¹¹í poèty jsou výsledky celkem pøijatelné a výstup je pøesnì takový, jaký byl po¾adován -- rozmazaný v dynamický oblastech a èistý a vyhlazený ve statických oblastech. 
+
+Výstupy jsou znázornìny na obrázcích~\ref{fig:4_rc_bball} a~\ref{fig:4_rc_earth} s rùznými poèty vzorkù poèítaných v jednom kroku. Aby byly výsledky pøijatelné, byla celá rekonstrukce simulována s vlastním generátorem èasových razítek pro urèení stáøí vzorkù. Pro bìh animace v reálném èase je mo¾né aktualizovat zhruba $2\,500$ vzorkù v jednom cyklu ($40$ milisekund), co¾ odpovídá zhruba $60\,000$ vzorkù za vteøinu. Reálné výsledky jsou tedy srovnatelné se spodní hranicí poètu vzorkù v testech, která dosahuje nejhor¹ích vizuálních výsledkù (viz obrázek~\ref{fig:4_rc_bball-1}). Pøesto je nutné zopakovat, ¾e metoda \emph{beznímkového renderování} není metodou pro zobrazování foto-realistické grafiky.
+
+
+\begin{table}[ht]
+	\centering
+	\begin{tabular}{|l||c|c|c|c|}
+		\hline 
+		~ & $2\,250$ vzorkù & $4\,500$ vzorkù & $9\,000$ vzorkù & $18\,000$ vzorkù \\ 
+		\hline 
+		\hline 
+		\emph{Skákající míè} & 3,205\% & 2,138\% & 1,658\% & \textbf{1,361\%} \\ 
+		\hline 
+		\emph{Planeta Zemì} & 8,049\% & 5,001\% & 3,783\% & \textbf{2,862\%} \\ 
+		\hline 
+		\emph{©achová figurka} & 2,127\% & 1,133\% & 0,758\% & \textbf{0,583\%} \\ 
+		\hline 
+	\end{tabular} 
+	
+	\caption{Zhodnocení výsledkù pro rekonstrukci obrazu pro rùzné poèty vzorkù poèítaných v jednom kroku. Není pøekvapení, ¾e chyba pro vy¹¹í poèty vzorkù rapidnì klesá a pro $18\,000$ vzorkù dosahuje nejni¾¹ích hodnot pro první dvì scény nejen v rámci rekonstrukce, ale i v rámci v¹ech ostatních testù (viz tabulky~\ref{tab:4_fr_results} a~\ref{tab:4_gs_results}). Pro scénu \emph{©achová figurka} je chyba sice vy¹¹í ne¾ u øízeného vzorkování bez rekonstrukce, ale obrázky~\ref{fig:4_rc_pawn-3} a~\ref{fig:4_rc_pawn-4} jasnì ukazují opak a potvrzují, ¾e \emph{bezsnímkové renderování} je pøedev¹ím zalo¾eno na lidské vnímání.}
+	\label{tab:4_rc_results}
+\end{table}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[$2\,250$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/bball/bball_2250smpls.png} \label{fig:4_rc_bball-1}} \\
+	\subfloat[$4\,500$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/bball/bball_4500smpls.png} \label{fig:4_rc_bball-2}} \\
+	\subfloat[$9\,000$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/bball/bball_9000smpls.png} \label{fig:4_rc_bball-3}} \\
+	\subfloat[$18\,000$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/bball/bball_18000smpls.png} \label{fig:4_rc_bball-4}}
+	
+	\caption{Obrázek zobrazuje výstup rekonstrukèního algoritmu na scénì \emph{skákajícího míèe} podle rozdílného poèty vzorkù poèítaných v jednom kroku simulace. Levý obrázek pøedstavuje aktuální obsah frame bufferu, druhý obrázek pak zobrazuje hodnoty derivací v jednotlivých smìrech ($d_x$ -- èervená, $d_y$ -- zelená a $d_y$ -- modrá barva). Tøetí obrázek zobrazuje pouze èasovou derivaci $d_t$ kódovou zelenou barvou. Poslední, ètvrtý obrázek zachycuje rozdíl výstupu po rekonstrukci s ideálním obrazem. Jak je vidìt, kvalita obrazu výraznì roste s poètem vzorkù a pro $9\,000$ vzorkù jsou ji¾ výsledky velmi pøijatelné. Pro $18\,000$ vzorkù je obraz témìø bez artefaktù.}
+	\label{fig:4_rc_bball}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[$2\,250$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/earth/earth_2250smpls.png} \label{fig:4_rc_earth-1}} \\
+	\subfloat[$4\,500$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/earth/earth_4500smpls.png} \label{fig:4_rc_earth-2}} \\
+	\subfloat[$9\,000$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/earth/earth_9000smpls.png} \label{fig:4_rc_earth-3}} \\
+	\subfloat[$18\,000$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/earth/earth_18000smpls.png} \label{fig:4_rc_earth-4}}
+	
+	\caption{Testovací scéna \emph{Planeta Zemì}. Obrázky jsou skládány shodnì jako v pøedchozím pøípadì. Vizuální výsledky pro tuto scénu vùbec nevypadají dobøe. Rychlý pohyb koule s texturou zprava doleva zpùsobuje pøekreslení témìø vìt¹iny pixelù v rastru, co¾ pro $2\,250$ vzorkù v jednom cyklu zpùsobí úplné rozmazání celého obrazu, Zemì pak prakticky není vidìt. Jak je patrné, v tomto pøípadì moc nepomáhá ani zvy¹ování poètu vzorkù poèítaných v jednom prùchodu. Pro $18\,000$ jsou v¹ak ji¾ výsledky pøijatelné a lze rozeznat i detaily na textuøe -- kontinenty. A jak se v testech ukázalo, skuteènì tento výstup je ze v¹ech zde pøedstavených výraznì nejlep¹í, s chybou $0,0286207$.}
+	\label{fig:4_rc_earth}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[$2\,250$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/pawn/pawn_2250smpls.png} \label{fig:4_rc_pawn-1}} \\
+	\subfloat[$4\,500$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/pawn/pawn_4500smpls.png} \label{fig:4_rc_pawn-2}} \\
+	\subfloat[$9\,000$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/pawn/pawn_9000smpls.png} \label{fig:4_rc_pawn-3}} \\
+	\subfloat[$18\,000$ vzorkù]{\includegraphics[width=15cm]{./fig/reconstruction/pawn/pawn_18000smpls.png} \label{fig:4_rc_pawn-4}}
+	
+	\caption{Testovací scéna \emph{©achová figurka} a její výstup. Samozøejmì, ¾e nejlep¹í výstup je opìt pro $18\,000$ vzorkù, ale je prakticky srovnatelný i pro pouhých $9\,000$ vzorkù aktualizovaných v jednom kroku a jeliko¾ se jedná o pouhých $14\%$ ze v¹ech pixelù, jsou výsledky více ne¾ dobré. Pro ni¾¹í poèty vzorkù je obraz nepøíjemnì rozmazaný a obsahuje artefakty na okrajích figurky. Naopak pro vy¹¹í poèty jsou vidìt tzv. \uv{prasátka}, které vrhá svìtlo na lesklý povrch figurky (pro~\ref{fig:4_rc_pawn-2} jsou jen tì¾ko postøehnutelné) a velmi ostré pøechody mezi osvìtlenou a zastínìnou plochou figurky. Zajímavé je, ¾e èasová derivace je pro tuto scénu témìø nulová po celou dobu animace. To je zpùsobeno opìt proto, ¾e nedochází k ¾ádnému pohybu objektù po scénì, ale pouze stínu po figurce.}
+	\label{fig:4_rc_pawn}
+\end{figure}
+
+
+\section{Zhodnocení výsledkù a budoucí vývoj}
+\label{sec:4_future_work}
+
+Souèasný stav demonstraèní aplikace je jistì dostaèující, av¹ak ne zcela optimální. Ji¾ pøi návrhu bylo upu¹tìno od v¹ech pokroèilej¹ích metod a implementace se zamìøila na hlavní aspekty \emph{bezsnímkové} metody a její \emph{adaptivní} varianty. Souèasná aplikace doká¾e zobrazovat grafiku v reálném èase, av¹ak s pomìrnì omezeným mno¾stvím pixelù aktualizovaných v jednom kroku. Oproti~\cite{DWWL05}, kteøí tvrdí, ¾e doká¾ou generovat a¾ $400\,000$ vzorkù za sekundu, jich tato aplikace zvládá okolo $110\,000$ pro základní \emph{bezsnímkovou} metodu a øízené vzorkování. Rekonstrukce celý proces výraznì zpomaluje, pøedev¹ím nutností poèítat nový, druhý vzorek pro aproximaci derivací. V tomto pøípadì je aplikace schopna zvládat aktualizovat $60\,000$ vzorkù za vteøinu.
+
+Dal¹ím aspektem pro kvalitu zobrazení je velikost rastru, do kterého jsou pixely ukládány. Pøijatelné výsledky jsou pro rozli¹ení $256 \times 256$, stejnì jako tomu bylo i v~\cite{DWWL05}. Pro vìt¹í rozli¹ení by bylo nutné aktualizovat více pixelù a jeliko¾ to není mo¾né, obraz pak trpí vìt¹ím výskytem artefaktù, pøípadnì je více rozmazán rekonstrukèním filtrem. Pøesto je mo¾né konstatovat, ¾e aplikace splòuje v¹echny aspekty stanovené pøed zapoèetím její implementace a na jednoduché scény je pou¾itelná i v praxi.
+
+
+\subsection{Mo¾ná vylep¹ení}
+\label{ssec:4_improvements}
+
+Jak ji¾ bylo øeèeno, implementace se zamìøila pouze na základní aspekty metody \emph{bezsnímkového renderování}. Proto je mo¾né pøedpokládat dal¹í vývoj a vylep¹ení aplikace novými poznatky a pøístupy. A jeliko¾ je i sama metoda stále ponìkud opomíjena, je mo¾né oèekávat bouølivý vývoj i u ní. Nìkolik uva¾ovaných mo¾ných vylep¹ení je pøedstaveno zde. 
+
+
+\begin{description}
+
+	\item[Neuniformní dìlení obrazu:] tento pøístup byl implementován v~\cite{DWWL05} a byl diskutován v~\ref{ssec:3_tiling}. Vlastní pøínos pro øízené vzorkování by mohl spoèívat v lep¹ím a pøesnìj¹ím výbìru vzorkù. Aktuální výstup v souèasné implementaci trpí pøedev¹ím na rozhraní mezi dvìma sousedními oblastmi, kde jedna má velikou pravdìpodobnost výbìru (dochází v ní k nìjaké animaci) a naopak druhá má pravdìpodobnost malou. Pokud se animace pøesune právì do druhé oblasti, je vidìt citelný zub ve výstupu, nebo» druhá oblast je stále vzorkována pomaleji a obsahuje velké mno¾ství neplatných vzorkù. Pokud by v¹ak byly oblasti dìleny podle prostorových derivací, tedy v okolí hran by bylo dìlení jemnìj¹í, pravdìpodobnì by byly odstranìny znatelné pøechody mezi jednotlivými oblastmi. Jak ji¾ bylo øeèeno, problém toho pøístupu mù¾e spoèívat v neustálé aktualizaci rozdìlení obrazu na oblasti a tím výrazném zpomalení celé aplikace.
+	
+	\item[Rekonstrukèní filtry:] v souèasné implementaci byly zvoleny pouze ty nejzákladnìj¹í filtry pro rekonstrukci, pøesnìji \emph{Gaussùv filtr}. Stejnì tak výpoèet rozmìrù a objemu filtru je znaènì zjednodu¹ený. Ostøej¹í grafický výstup a lep¹í zpùsob nakládání se stáøím vzorkù by bylo jistì mo¾né dosáhnout výbìrem a implementací více slo¾itìj¹ích a sofistikovanìj¹ích filtrù. Pøesto jsou zvolené filtry plnì v souladu s dostupnými materiály a jsou implementovány stejnì nebo podobnì jako v~\cite{DWWL05} a~\cite{S06}.
+	
+	\item[Reprojekce vzorkù:] jedním z hlavních aspektù, které nebyly do implementace zaøazeny je \emph{reprojekce} a znovupou¾ití starých vzorkù podle nové pozice kamery ve scénì. Tento pøístup mù¾e v urèitých typech scén výraznì zlep¹it výstup rekonstruovaného obrazu (hlavnì pøi pohybu kamerou) a urychlit výpoèet samotný (zejména pokud je implementován na samostatné výpoèetní jednotce). Tento pøístup je implementován~\cite{DWWL05}. V této práci od nìho bylo upu¹tìno zejména z dùvodù rychlé èasové odezvy.
+	
+	\item[Rozdìlení na více výpoèetních jednotek:] velmi zajímavý nápad, který by mohl výraznì sní¾it odezvu aplikace a metodu pøiblí¾it k masovému vyu¾ití. Jedním faktorem zde mù¾e být paralelizace samotného výpoètu (napø. získání barvy vzorku z \emph{raytraceru}). Dále pak mù¾e jít o rozdìlení aplikace mezi rùzné výpoèetní jednotky, tak jak tomu je u rekonstrukce v~\cite{DWWL05}, která byla celá pøesunuta a implementována pomocí \emph{shaderù} na grafické kartì. Bohu¾el tento pøístup pøímo odporuje základní my¹lence \emph{bezsnímkového renderování} a bez nových technologií v oblasti zobrazovacích zaøízení ho nebude mo¾né legitimnì vyøe¹it.
+	
+	\item[Nové technologie v oblasti zobrazovacích zaøízení:] jak ji¾ bylo uvedeno v kapitole~\ref{chap:2_fr}, souèasné zobrazovací zaøízení nejsou schopny zobrazit výstup \emph{bezsnímkového rendereru}, tak jak byl navr¾en v~\cite{BFMZ94} a je nutné tento fakt obcházet rùznými zpùsoby. Na vhodných zobrazovacích zaøízení by se jistì dalo vyu¾ít plného potenciálu \emph{bezsnímkové metody}. Jednou z mo¾ností jsou zaøízení pro zobrazování virtuální reality nebo \emph{HMD}. Dal¹í vyu¾ití lze pøedpokládat u velikých displejù, kde klasický pøístup na vysokém rozli¹ení je velmi neefektivní.
+	
+	\item[Aspekty zalo¾ené na vnímání:] tyto aspekty byly v rámci této práce zcela ponechány stranou, pøesto nejvìt¹í potenciál této metody le¾í právì zde. Jak je uvedeno v~\cite{Z97a}  a v~\cite{Z97b} veliký pøínos metody le¾í právì v øízeném vzorkování, které upøednostòuje nìkteré oblasti v obraze. Stejnì se tomu dìje i na sítnici v lidském oku a proto by bylo mo¾né zohlednit výbìr oblastí právì podle tohoto faktoru. Ve spojení s novými technologiemi zobrazovacích zaøízení lze zcela logicky pøedpokládat, ¾e právì zde le¾í budoucnost \emph{bezsnímkové} metody, nebo» jak se ukazuje, v rámci klasických displejù, kde zcela dominuje vyu¾ití dvou bufferù, je její masové vyu¾ití prakticky nulové.
+
+\end{description}

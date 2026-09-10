@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta http-equiv="cache-control" content="no-cache" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<meta name="author" content="Vojtěch Krupička, xkrupi06@stud.fit.vutbr.cz" />
+		<title>.: Bezsnímkové renderování | DIP 2012 | Vizuální výsledky : Skákající míč, rekonstrukce :.</title>
+	
+		<style type="text/css">
+			* {margin:0;padding:0;}
+			body {margin:0; padding:0; background:#FFF; font-family:Verdana, Arial, sans-serif;
+						font-size: 12px;color:#000}
+			#container {margin:20px auto; padding:0; background:#FFF; width: 1600px;color:#808080}
+			.menu 	  {margin: 10px 0;}
+			a         {color:#003365; text-decoration:underline}
+			a:hover   {color:#7F3F3C; text-decoration:none}
+			h1        {font-size:300%;color:#15356F;text-transform: uppercase;line-height:200%;position:relative;}
+			h1 a      {position:absolute;top:0;right:0;font-size:50%;line-height:400%;}
+			h2		  {font-size:200%;color:#15356F;border-top:1px #15356F solid;line-height:180%}
+			h3        {margin:20px 0 0 0;font-size:150%;color:#15356F;position:relative;line-height:200%}
+			h3 a      {position:absolute;top:0;right:0;font-size:50%;line-height:200%;}
+			h4        {margin:10px 0 0 0;line-height:150%;}
+			p         {font-size:98%;line-height:150%;text-align:justify;}
+			ul, ol	  {margin:10px 16px;}
+			li		  {margin:0 16px;line-height:150%;}
+			table     {margin:10px auto; width:96%; height:auto; border-collapse:collapse; border:1px #808080 solid;color:#000}
+			tr        {height:20px;background:#FFF8DC;}
+			th        {padding:4px 6px; border:1px #808080 solid;}
+			td        {padding:4px 6px; border:1px #808080 solid;}
+			.head     {height:40px;background:#ADD8E6;color:#003365}
+			.parent   {background:#F0F8F0}
+			.even     {background:#DFE7CF}
+			.center   {text-align:center;}
+			.left 	  {text-align:left;}
+			.bold     {font-weight:bold;}
+			.italic   {font-style:italic;}
+			img 	  {display: block; margin: 10px auto;}
+			
+			fieldset  {margin:10px auto;padding:20px 20px; border:1px #808080 solid;background:#F0F8F0;color:#000}
+			legend    {font-weight:bold;}
+			label     {margin:0 20px 0 0}
+			form      {margin:0 auto 20px auto;}
+			div.code	{background: #F0F8F0; margin: 11px auto; width:86%; font-family: "Courier New"; padding: 10px 20px; border: 1px #808080 solid;}
+			span.code	{background: #F0F8F0; font-family: "Courier New"; padding: 1px 2px}
+			.report_ko  {color: #F00; border: 1px #F00 solid; background: #FFDEAD}
+			.report_ok  {color: #003365; border: 1px #003365 solid; background: #ADD8E6}
+			
+			.footer   {margin:20px auto; padding:20px 0; border-top:1px #808080 solid;text-align:center}
+		</style>
+	
+	</head>
+	<body>
+	
+		<div id="container">
+			<h1>Skákající míč <a href="index.html" title="Zpět na hlavní stránku">&laquo; Zpět</a></h1>
+			<h2>Rekonstrukce</h2>
+			
+			<div class="menu">
+				<a href="#frame114" title="@00:00:04.56 (snímek 114)">@00:00:04.56 (snímek 114)</a> |
+				<a href="#frame187" title="@00:00:07.48 (snímek 187)">@00:00:07.48 (snímek 187)</a>
+			</div>
+			
+			<h3 id="frame114">@00:00:04.56 (snímek 114) <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<table>
+					<tr>
+						<th>&nbsp;</th>
+						<th>Ideální výstup</th>
+						<th>Výstup rendereru</th>
+						<th>Směrové derivace (<span style="color:#f00">d<sub>x</sub></span>, <span style="color:#0f0">d<sub>y</sub></span>, <span style="color:#00f">d<sub>t</sub></span>)</th>
+						<th>Časová derivace (<span style="color:#0f0">d<sub>t</sub></span>)</th>
+						<th>Rozdíl s ideálním výstupem</th>
+					</tr>
+		
+						
+					<tr>
+						<th>2 250 vzorků</th>
+						<td class="center"><img src="images/bball/bball_00114-ideal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-2250smpls-normal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-2250smpls-deriv.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-2250smpls-temp.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-2250smpls-diff.png" alt="" /></td>
+					</tr>					
+					<tr>
+						<th>4 500 vzorků</th>
+						<td class="center"><img src="images/bball/bball_00114-ideal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-4500smpls-normal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-4500smpls-deriv.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-4500smpls-temp.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-4500smpls-diff.png" alt="" /></td>
+					</tr>					
+					<tr>
+						<th>9 000 vzorků</th>
+						<td class="center"><img src="images/bball/bball_00114-ideal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-9000smpls-normal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-9000smpls-deriv.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-9000smpls-temp.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-9000smpls-diff.png" alt="" /></td>
+					</tr>					
+					<tr>
+						<th>18 000 vzorků</th>
+						<td class="center"><img src="images/bball/bball_00114-ideal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-18000smpls-normal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-18000smpls-deriv.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-18000smpls-temp.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00114-18000smpls-diff.png" alt="" /></td>
+					</tr>					
+					
+				</table>
+			</div>
+			
+			<h3 id="frame187">@00:00:07.48 (snímek 187) <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<table>
+					<tr>
+						<th>&nbsp;</th>
+						<th>Ideální výstup</th>
+						<th>Výstup rendereru</th>
+						<th>Směrové derivace (<span style="color:#f00">d<sub>x</sub></span>, <span style="color:#0f0">d<sub>y</sub></span>, <span style="color:#00f">d<sub>t</sub></span>)</th>
+						<th>Časová derivace (<span style="color:#0f0">d<sub>t</sub></span>)</th>
+						<th>Rozdíl s ideálním výstupem</th>
+					</tr>
+		
+						
+					<tr>
+						<th>2 250 vzorků</th>
+						<td class="center"><img src="images/bball/bball_00187-ideal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-2250smpls-normal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-2250smpls-deriv.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-2250smpls-temp.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-2250smpls-diff.png" alt="" /></td>
+					</tr>					
+					<tr>
+						<th>4 500 vzorků</th>
+						<td class="center"><img src="images/bball/bball_00187-ideal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-4500smpls-normal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-4500smpls-deriv.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-4500smpls-temp.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-4500smpls-diff.png" alt="" /></td>
+					</tr>					
+					<tr>
+						<th>9 000 vzorků</th>
+						<td class="center"><img src="images/bball/bball_00187-ideal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-9000smpls-normal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-9000smpls-deriv.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-9000smpls-temp.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-9000smpls-diff.png" alt="" /></td>
+					</tr>					
+					<tr>
+						<th>18 000 vzorků</th>
+						<td class="center"><img src="images/bball/bball_00187-ideal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-18000smpls-normal.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-18000smpls-deriv.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-18000smpls-temp.png" alt="" /></td>
+						<td class="center"><img src="images/bball/reconstruction/bball_00187-18000smpls-diff.png" alt="" /></td>
+					</tr>					
+					
+				</table>
+			</div>			
+			
+			<div class="footer">
+				Copyright &copy; 2012 <strong>Vojtěch Krupička</strong>, <a href="mailto:xkrupi06@stud.fit.vutbr.cz">xkrupi06@stud.fit.vutbr.cz</a>, all right reserved<br />
+				Fakulta informačních technologií VUT v Brně, Božetěchova 2, 612 66 Brno
+			</div>
+		</div>
+
+	</body>
+</html>

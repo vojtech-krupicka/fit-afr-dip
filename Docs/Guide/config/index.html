@@ -1,0 +1,277 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta http-equiv="cache-control" content="no-cache" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<meta name="author" content="Vojtěch Krupička, xkrupi06@stud.fit.vutbr.cz" />
+		<title>.: Bezsnímkové renderování | DIP 2012 | Formát INI :.</title>
+	
+		<style type="text/css">
+			* {margin:0;padding:0;}
+			body {margin:0; padding:0; background:#FFF; font-family:Verdana, Arial, sans-serif;
+						font-size: 12px;color:#000}
+			#container {margin:20px auto; padding:0; background:#FFF; width: 900px;color:#808080}
+			.menu 	  {margin: 10px 0;}
+			a         {color:#003365; text-decoration:underline}
+			a:hover   {color:#7F3F3C; text-decoration:none}
+			h1        {font-size:300%;color:#15356F;text-transform: uppercase;line-height:200%;position:relative;}
+			h1 a      {position:absolute;top:0;right:0;font-size:50%;line-height:400%;}
+			h2		  {font-size:200%;color:#15356F;border-top:1px #15356F solid;line-height:180%}
+			h3        {margin:20px 0 0 0;font-size:150%;color:#15356F;position:relative;line-height:200%}
+			h3 a      {position:absolute;top:0;right:0;font-size:50%;line-height:200%;}
+			h4        {margin:10px 0 0 0;line-height:150%;}
+			p         {font-size:98%;line-height:150%;text-align:justify;}
+			ul, ol	  {margin:10px 16px;}
+			li		  {margin:0 16px;line-height:150%;}
+			table     {margin:10px auto; width:90%; height:auto; border-collapse:collapse; border:1px #808080 solid;color:#000}
+			tr        {height:20px;background:#FFF8DC;}
+			th        {padding:4px 6px; border:1px #808080 solid;}
+			td        {padding:4px 6px; border:1px #808080 solid;}
+			.head     {height:40px;background:#ADD8E6;color:#003365}
+			.parent   {background:#F0F8F0}
+			.even     {background:#DFE7CF}
+			.center   {text-align:center;}
+			.left 	  {text-align:left;}
+			.bold     {font-weight:bold;}
+			.italic   {font-style:italic;}
+			img 	  {display: block; margin: 10px auto;}
+			
+			dl		  {margin:16px;}
+			dt		  {margin:8px 0 0 0;line-height:150%;}
+			dd		  {margin:0 0 0 32px;line-height:150%;}
+			
+			fieldset  {margin:10px auto;padding:20px 20px; border:1px #808080 solid;background:#F0F8F0;color:#000}
+			legend    {font-weight:bold;}
+			label     {margin:0 20px 0 0}
+			form      {margin:0 auto 20px auto;}
+			div.code	{background: #F0F8F0; margin: 11px auto; width:86%; font-family: "Courier New"; padding: 10px 20px; border: 1px #808080 solid;}
+			span.code	{background: #F0F8F0; font-family: "Courier New"; padding: 1px 2px}
+			.report_ko  {color: #F00; border: 1px #F00 solid; background: #FFDEAD}
+			.report_ok  {color: #003365; border: 1px #003365 solid; background: #ADD8E6}
+			
+			.footer   {margin:20px auto; padding:20px 0; border-top:1px #808080 solid;text-align:center}
+		</style>
+	
+	</head>
+	<body>
+	
+		<div id="container">
+			<h1>Bezsnímkové Renderování <a href="../index.html" title="Zpět na hlavní stránku">&laquo; Zpět</a></h1>
+			<h2>Konfigurace - formát INI</h2>
+			
+			<div class="menu">
+				<a href="#overview" title="Přehled">Přehled</a> |
+				<a href="#parameters" title="Definice parametrů">Definice parametrů</a> |
+				<a href="#example" title="Příklad konfigurace">Příklad konfigurace</a>
+			</div>
+			
+			<h3 id="overview">Přehled <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Formát <span class="code">INI</span> slouží pro konfiguraci aplikace. Umožňuje definovat veškerá nastavení pro výslednou aplikaci, od metody výběru pozice vzorků, přes počet pixelů aktualizovaných v jednom kroku až po nastavení scény a raytraceru (např. použití <em>kd</em>-stromu nebo hloubka rekurze). Některá nastavení jsou podporována všude, jiná pouze pro určité druhy aplikace (simulátor, demo, full).</p> 
+				
+				<ul>
+					<li>Formát <span class="code">INI</span> obsahuje příkazy na jednotlivých řádcích ukončených znakem <span class="code">\n</span>.</li>
+					<li>Každý řádek je pak ve formátu <span class="code">parametr = hodnota</span>.</li>
+					<li>Bílé znaky jsou ignorovány, pro víceslovné hodnoty, je nutné je uzavřít do uvozovoek.</li>
+					<li>Komentáře jsou povoleny a začínají vždy na novém řádku znakem <span class="code">;</span>.</li>
+					<li>Sekce v <span class="code">INI</span> formátu nejsou parsovány, čili je možné je používat pro zpřehlednění konfiguračního souboru.</li>
+					<li>Všechny parametry jsou volitelné, jediný povinný parametr je <span class="code">scene_file</span> pro definici souboru se scénou.</li>
+				</ul>
+		
+			</div>
+			
+			<h3 id="parameters">Definice parametrů <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Přehled všech parametrů a hodnot, které jsou povoleny, příp. akceptovaných typů, pokud je typů více, jsou odděleny znakem <span class="code">|</span>.</p> 
+				
+				<h4 id="common" class="code">[common]</h4>
+				<dl>
+					<dt id="redraw_mode"><span class="code">redraw_mode</span> (<span class="code">string, [auto|fps|fixed]</span>):</dt>
+					<dd>
+						&raquo; určuje režim pro ukončení jednoho cyklu aplikace (ukončení aktualizace pixelů) a překreslení frame bufferu na výstup. Může nabývat hodnot:
+						<ul>
+							<li><span class="code">auto</span>: pokud scéna obsahuje animace, čas kroku se nastaví na jeden krok animace, jinak se chová jako <span class="code">fps</span>,</li>
+							<li><span class="code">fps</span>: nastaví čas kroku tak, aby výsledná animace běžela na požadoványch FPS (viz <span class="code">redraw_fps</span>),</li>
+							<li><span class="code">fixed</span>: čas nebere v potaz, vždy aktualizuje specifikovaný počet pixelů v každém kroku (viz <span class="code">redraw_fixed</span>),</li>
+						</ul>
+					</dd>
+					
+					<dt id="redraw_fps"><span class="code">redraw_fps</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; pokud je nastaven režim <span class="code">fps</span>, určuje obnovovací frekvenci, která bude dodržena.</dd>
+					
+					<dt id="redraw_fixed"><span class="code">redraw_fixed</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; pokud je nastaven režim <span class="code">fixed</span>, aktualizuje nastavený počet pixelů v každém kroku.</dd>
+					
+					<dt id="redraw_min_pixels"><span class="code">redraw_min_pixels</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; určuje počet pixelů, které budou minimálně aktualizovány v každém kroku (nesouvisí ani s režimem ani s <span class="code">redraw_fixed</span>).</dd>
+					
+					<dt id="draw_fps"><span class="code">draw_fps</span> (<span class="code">boolean</span>):</dt>
+					<dd>&raquo; příznak, zda se má vykreslovat aktuální FPS do okna.</dd>
+					
+					<dt id="predraw_screen"><span class="code">predraw_screen</span> (<span class="code">boolean</span>):</dt>
+					<dd>&raquo; příznak, zda se má před spuštěním vyrenderovat celá scéna pomocí raytraceru. První snímek tedy obsahuje platné údaje.</dd>
+					
+					<dt id="use_bg_image"><span class="code">use_bg_image</span> (<span class="code">boolean</span>):</dt>
+					<dd>&raquo; příznak, zda se má použít obrázek na pozadí před spuštěním animace (pokud není nastaveno <span class="code">predraw_screen</span>, viz <span class="code">use_bg_image</span>).</dd>
+					
+					<dt id="bg_image"><span class="code">bg_image</span> (<span class="code">string</span>):</dt>
+					<dd>&raquo; pokud je nastaven příznak <span class="code">use_bg_image</span>, určuje cestu k obrázku na pozadí.</dd>
+					
+					<dt id="capture_frame"><span class="code">capture_frame</span> (<span class="code">boolean</span>):</dt>
+					<dd>&raquo; příznak, zda se má úkládat aktuální obsah frame bufferu.</dd>
+					
+					<dt id="capture_nth_frame"><span class="code">capture_nth_frame</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; pokud je povolen příznak <span class="code">capture_frame</span>, určuje pořadí snímku, který bude uložen. Pokud je nastaveno <span class="code">-1</span>, ukládá všechny snímky.</dd>
+					
+					<dt id="frame_name_mask"><span class="code">frame_name_mask</span> (<span class="code">string</span>):</dt>
+					<dd>
+						&raquo; pokud je nastaven příznak <span class="code">capture_frame</span>, definuje masky pro cestu a název ukládaného obrázku. V názvu je možné zadat několik placeholderů (každý začíná znakem <span class="code">%</span>):
+						<ul>
+							<li><span class="code">%%</span>: escape sekvence pro znak <span class="code">%</span>,</li>
+							<li><span class="code">%N</span>: unikátní jméno obrázku (id),</li>
+							<li><span class="code">%T</span>: aktuální čas animace,</li>
+							<li><span class="code">%F</span>: aktuální snímek animace,</li>
+							<li><span class="code">%G</span>: globální čas, kdy byla aplikace spuštěna,</li>
+							<li><span class="code">%A</span>: aktuální čas cyklu apliakce, tj. aktuální čas - čas, kdy byla cyklus spuštěn,</li>
+							<li><span class="code">%M</span>: název metody (halton, random, poisson, jitter, rooks),</li>
+							<li><span class="code">%B</span>: název bufferu (normal, tiles, deriv, temp),</li>
+						</ul>
+					</dd>
+				</dl>	
+				
+				<h4 id="application" class="code">[application]</h4>	
+				<dl>	
+					<dt id="auto_start"><span class="code">auto_start</span> (<span class="code">boolean</span>):</dt>
+					<dd>&raquo; příznak, zda bude animace po spuštení aplikace automaticky spuštěna.</dd>
+					
+					<dt id="sampling_method"><span class="code">sampling_method</span> (<span class="code">string, [halton|random|jitter|poisson|rooks]</span>):</dt>
+					<dd>&raquo; výběr metody pro výběr pozice vzorku.</dd>
+					
+					<dt id="samples_cache_size"><span class="code">samples_cache_size</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; počet pozic vzorků předpočítaných v jednom kroku (pro jitter, poisson a rooks).</dd>
+					
+					<dt id="use_guiding_sampling"><span class="code">use_guiding_sampling</span> (<span class="code">boolean</span>):</dt>
+					<dd>&raquo; příznak, zda má být použito <em>řízeného vzorkování</em>.</dd>
+
+					<dt id="horizontal_tiles"><span class="code">horizontal_tiles</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; počet oblastí horizontálně.</dd>
+					
+					<dt id="vertical_tiles"><span class="code">vertical_tiles</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; počet oblastí vertikálně.</dd>
+					
+					<dt id="use_recontruction"><span class="code">use_recontruction</span> (<span class="code">boolean</span>):</dt>
+					<dd>&raquo; příznak, zda má být použita <em>rekonstrkce</em>.</dd>
+					
+					<dt id="sigma_factor"><span class="code">sigma_factor</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; modifikátor pro výpočet objemu filtru <span class="code">V<sub>s</sub></span>.</dd>
+					
+					<dt id="aging_factor"><span class="code">aging_factor</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; faktor <em>s</em> pro stárnutí pixelů a oblastí.</dd>
+				</dl>	
+					
+				<h4 id="scene" class="code">[scene]</h4>	
+				<dl>
+					<dt id="scene_file"><span class="code">scene_file</span> (<span class="code">string</span>):</dt>
+					<dd>&raquo; cesta a název k souboru se scénou. POVINNÝ PARAMETER!!!</dd>
+					
+					<dt id="use_scene_kdtree"><span class="code">use_scene_kdtree</span> (<span class="code">boolean</span>):</dt>
+					<dd>&raquo; příznak, zda má být <em>kd</em>-strom.</dd>
+
+					<dt id="scene_kdtree_depth"><span class="code">scene_kdtree_depth</span> (<span class="code">integer|string [smart]</span>):</dt>
+					<dd>&raquo; hloubka <em>kd</em>-strom (pokud je povolen). Celočíselná hodnota nebo <span class="code">smart</span>, která spočítá hloubku automaticky podle celkového počtu primitiv ve scéně.</dd>
+
+					<dt id="scene_kdtree_min_primitives"><span class="code">scene_kdtree_min_primitives</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; minimální počet primitiv, aby byl skutečné <em>kd</em>-strom použit (pokud je povolen).</dd>
+
+					<dt id="scene_kdtree_min_depth"><span class="code">scene_kdtree_min_depth</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; minimální hloubka <em>kd</em>-stromu aby byl vytvořen (pokud je povolen, má smysl pouze pokud je <span class="code">scene_kdtree_depth=smart</span>).</dd>
+				</dl>	
+					
+				<h4 id="raytracer" class="code">[raytracer]</h4>	
+				<dl>
+					<dt id="use_tracer_msaa"><span class="code">use_tracer_msaa</span> (<span class="code">boolean</span>):</dt>
+					<dd>&raquo; příznak zda bude zapnut anti-aliasing.</dd>
+					
+					<dt id="tracer_msaa"><span class="code">tracer_msaa</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; pokud je povoleno, určuje počet vzorků pro řešení anti-aliasingu (pouze v jednom směru, skutečný počet vzorků je pak druhá mocnina této hodnoty).</dd>
+
+					<dt id="tracer_depth"><span class="code">tracer_depth</span> (<span class="code">integer</span>):</dt>
+					<dd>&raquo; hloubka raytraceru, do které sleduje paprsky (odražené nebo zalomené).</dd>
+				</dl>
+		
+			</div>	
+			
+			<h3 id="example">Příklad konfigurace <a href="#container" title="Nahoru">nahoru</a></h3>		
+			<div>
+				<p>Příklad kompletní konfigurace pro scénu <em>skákající míč</em> (<em>Haltonova</em> posloupnost, 32 &times; 32 oblastí, faktor <em>s = 100</em>, řízené vzorkování + rekonstrukce):</p> 
+				
+				<div class="code">
+					<span style="color:#c0c0c0;">; ============================================================================ ;</span><br />
+					<span style="color:#c0c0c0;">; AFR - Adaptive Frameless Rendering                                           ;</span><br />	
+					<span style="color:#c0c0c0;">; @author	  Krupicka Vojtech,	 xkrupi06                                      ;</span><br />
+					<span style="color:#c0c0c0;">; @file       config.ini                                                       ;</span><br />
+					<span style="color:#c0c0c0;">; @date	      09. 03. 2012                                                     ;</span><br />
+					<span style="color:#c0c0c0;">; @note  	  ISO 8859-2                                                       ;</span><br />
+					<span style="color:#c0c0c0;">; @brief      Common config file for configuration ARF demo application.       ;</span><br />
+					<span style="color:#c0c0c0;">; ============================================================================ ;</span><br />
+					<br />
+					<br />
+					<span style="color:#c0c0c0;">; Common section to define global or misc parameters</span><br />
+					<a href="#common" title="common"><strong>[common]</strong></a><br />
+					<br />
+					<a href="#redraw_mode" title="redraw_mode">redraw_mode</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= fixed<br />
+					<a href="#redraw_fps" title="redraw_fps">redraw_fps</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 75<br />
+					<a href="#redraw_fixed" title="redraw_fixed">redraw_fixed</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 4500<br />
+					<a href="#redraw_min_pixels" title="redraw_min_pixels">redraw_min_pixels</a>&nbsp;&nbsp;&nbsp;&nbsp;= 20<br />
+					<a href="#draw_fps" title="draw_fps">draw_fps</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 1<br />
+					<a href="#predraw_screen" title="predraw_screen">predraw_screen</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 1<br />
+					<a href="#use_bg_image" title="use_bg_image">use_bg_image</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 0<br />
+					<a href="#bg_image" title="bg_image">bg_image</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= "./backgrounds/pawn_bg.ppm"<br />
+					<a href="#capture_frame" title="capture_frame">capture_frame</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 1<br />
+					<a href="#capture_nth_frame" title="capture_nth_frame">capture_nth_frame</a>&nbsp;&nbsp;&nbsp;&nbsp;= -1<br />
+					<a href="#frame_name_mask" title="frame_name_mask">frame_name_mask</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= "output/bball/bball_%F-4500smpls-%B.ppm"<br />
+					<br />
+					<br />
+					<span style="color:#c0c0c0;">; Application settings</span><br />
+					<a href="#application" title="application"><strong>[application]</strong></a><br />
+					<br />
+					<a href="#auto_start" title="auto_start">auto_start</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 1<br />
+					<a href="#sampling_method" title="sampling_method">sampling_method</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= "halton"<br />
+					<a href="#samples_cache_size" title="samples_cache_size">samples_cache_size</a>&nbsp;&nbsp;&nbsp;= 64<br />
+					<a href="#use_guiding_sampling" title="use_guiding_sampling">use_guiding_sampling</a>&nbsp;= 1<br />
+					<a href="#horizontal_tiles" title="horizontal_tiles">horizontal_tiles</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 32<br />
+					<a href="#vertical_tiles" title="vertical_tiles">vertical_tiles</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 32<br />
+					<a href="#use_recontruction" title="use_recontruction">use_recontruction</a>&nbsp;&nbsp;&nbsp;&nbsp;= 1<br />
+					<a href="#sigma_factor" title="sigma_factor">sigma_factor</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 3<br />
+					<a href="#aging_factor" title="aging_factor">aging_factor</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 100<br />
+					<br />
+					<br />
+					<span style="color:#c0c0c0;">; Scene section to define parameters of scene</span><br />
+					<a href="#scene" title="scene"><strong>[scene]</strong></a><br />
+					<a href="#scene_file" title="scene_file">scene_file</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= "./scenes/bball.nff"<br />
+					<a href="#use_scene_kdtree" title="use_scene_kdtree">use_scene_kdtree</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 1<br />
+					<a href="#scene_kdtree_depth" title="scene_kdtree_depth">scene_kdtree_depth</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 11<br />
+					<a href="#scene_kdtree_min_primitives" title="scene_kdtree_min_primitives">scene_kdtree_min_primitives</a>&nbsp;= 100<br />
+					<a href="#scene_kdtree_min_depth" title="scene_kdtree_min_depth">scene_kdtree_min_depth</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 3<br />
+					<br />
+					<br />
+					<span style="color:#c0c0c0;">; Raytracer settings</span><br />
+					<a href="#raytracer" title="raytracer"><strong>[raytracer]</strong></a><br />
+					<a href="#use_tracer_msaa" title="use_tracer_msaa">use_tracer_msaa</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 0<br />
+					<a href="#tracer_msaa" title="tracer_msaa">tracer_msaa</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 1<br />
+					<a href="#tracer_depth" title="tracer_depth">tracer_depth</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 1<br />
+					<br />
+				</div>
+		
+			</div>
+			
+			<div class="footer">
+				Copyright &copy; 2012 <strong>Vojtěch Krupička</strong>, <a href="mailto:xkrupi06@stud.fit.vutbr.cz">xkrupi06@stud.fit.vutbr.cz</a>, all right reserved<br />
+				Fakulta informačních technologií VUT v Brně, Božetěchova 2, 612 66 Brno
+			</div>
+		</div>
+
+	</body>
+</html>

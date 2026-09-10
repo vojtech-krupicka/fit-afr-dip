@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta http-equiv="cache-control" content="no-cache" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<meta name="author" content="Vojtěch Krupička, xkrupi06@stud.fit.vutbr.cz" />
+		<title>.: Bezsnímkové renderování | DIP 2012 :.</title>
+	
+		<style type="text/css">
+			* {margin:0;padding:0;}
+			body {margin:0; padding:0; background:#FFF; font-family:Verdana, Arial, sans-serif;
+						font-size: 12px;color:#000}
+			#container {margin:20px auto; padding:0; background:#FFF; width: 900px;color:#808080}
+			.menu 	  {margin: 10px 0;}
+			a         {color:#003365; text-decoration:underline}
+			a:hover   {color:#7F3F3C; text-decoration:none}
+			h1        {font-size:300%;color:#15356F;text-transform: uppercase;line-height:200%;position:relative;}
+			h1 a      {position:absolute;top:0;right:0;font-size:50%;line-height:400%;}
+			h2		  {font-size:200%;color:#15356F;border-top:1px #15356F solid;line-height:180%}
+			h3        {margin:20px 0 0 0;font-size:150%;color:#15356F;position:relative;line-height:200%}
+			h3 a      {position:absolute;top:0;right:0;font-size:50%;line-height:200%;}
+			h4        {margin:10px 0 0 0;line-height:150%;}
+			p         {text-indent:32px;font-size:98%;line-height:150%;text-align:justify;}
+			p:first-child	  {text-indent:0;}
+			ul, ol	  {margin:10px 16px;}
+			li		  {margin:0 16px;line-height:150%;}
+			table     {margin:10px auto; width:90%; height:auto; border-collapse:collapse; border:1px #808080 solid;color:#000}
+			tr        {height:20px;background:#FFF8DC;}
+			th        {padding:4px 6px; border:1px #808080 solid;}
+			td        {padding:4px 6px; border:1px #808080 solid;}
+			.head     {height:40px;background:#ADD8E6;color:#003365}
+			.parent   {background:#F0F8F0}
+			.even     {background:#DFE7CF}
+			.center   {text-align:center;}
+			.left 	  {text-align:left;}
+			.bold     {font-weight:bold;}
+			.italic   {font-style:italic;}
+			img 	  {display: block; margin: 10px auto;}
+			
+			dl		  {margin:16px;}
+			dt		  {margin:8px 0 0 0;line-height:150%;}
+			dd		  {margin:0 0 0 32px;line-height:150%;}
+			
+			fieldset  {margin:10px auto;padding:20px 20px; border:1px #808080 solid;background:#F0F8F0;color:#000}
+			legend    {font-weight:bold;}
+			label     {margin:0 20px 0 0}
+			form      {margin:0 auto 20px auto;}
+			div.code	{background: #F0F8F0; margin: 11px auto; width:86%; font-family: "Courier New"; padding: 10px 20px; border: 1px #808080 solid;}
+			span.code	{background: #F0F8F0; font-family: "Courier New"; padding: 1px 2px}
+			.report_ko  {color: #F00; border: 1px #F00 solid; background: #FFDEAD}
+			.report_ok  {color: #003365; border: 1px #003365 solid; background: #ADD8E6}
+			
+			.footer   {margin:20px auto; padding:20px 0; border-top:1px #808080 solid;text-align:center}
+		</style>
+	
+	</head>
+	<body>
+	
+		<div id="container">
+			<h1>Bezsnímkové Renderování</h1>
+			<h2>Frameless Rendering</h2>
+			
+			<h4>Přejít na <a href="Docs/Guide/index.html" title="Uživatelská příručka">uživatelská příručku &raquo;</a></h4>
+			
+			<h3>Úvod</h3>
+			<div>
+				<p>Tento soubor slouží jako vztupní bod pro popis aplikace a celé diplomové práce na téma <em>bezsnímkové renderování</em>. Aplikace pro demonstranci této metody byla pojmenována <em>Hassa Adaptive Frameless Renderer</em>, zkráceně <strong>HassaAFR</strong>.</p>
+				<p>Pro bližší seznámení s <a href="./Docs/Guide/index.html#dvd-content" title="Obsah DVD">obsahem DVD</a>, <a href="./Docs/Guide/index.html" title="Uživatelská příručka">dokumentací</a> a <a href="./Docs/Guide/results/index.html" title="Vizuální výsledky">vizuálními výsledky</a> pokračujte do složky <strong>Docs</strong>, kde mj. naleznete i dvě <em>videa</em> ve složce <strong>Videos</strong>. Ve složce <b>Report</b> je nahrána elektronická verze technické zprávy ve formátu <span class="code">pdf</span> a v podsložce <b>Source</b> jsou poté všechny nezbytné soubory potřebné pro vysázení výsledného pdf. Diplomová práce byla psána v <strong>LaTeXu</strong>, kompilováno na <b>Merlinu</b>.</p>
+			</div>
+			
+			<h3>Instalace, spuštění a ovládání</h3>
+			<div>
+				<p>Všechny zdrojové kódy se nacházejí ve složce <b>Source</b>, přesněji řečeno ve složce <b>code</b>. Pro úspěšný překlad je dodán <b>Makefile</b>, pomocí něhož lze celou aplikaci přeložit. Pro konkrétní příkazy pro překlad nebo následné odinstalování apliace naleznete více informací <a href="./Docs/Guide/help/index.html#install" title="Instalace">zde</a>. <a href="./Docs/Guide/help/index.html#parameters" title="Spuštění">Spuštění</a>, <a href="./Docs/Guide/config/index.html" title="Konfigurace">konfigurace</a> a <a href="./Docs/Guide/help/index.html#controls" title="Ovládání">ovládání</a> aplikace je pak detailně popsáno na příslušných stránkách uživatelské příručky.</p>
+				<p>Kompilace byla úspěšně odzkoušena na školním serveru <strong>Merlin</strong> a na operačním systému <strong>Windows 7</strong>. Po kompilaci se vytvoří nová složka <span class="code">bin</span>, ve které se bude nalézat i binární spustitelný soubor aplikace. Pro úspěšné přeložení je vyžadována knihovna <strong>OpenGL</strong>. Kompilace byla testována pro <strong>MinGW</strong>, verze <span class="code">4.6.1</span></p>
+			</div>
+			
+			<h3>Rychlé spuštění</h3>
+			<div>
+				<p>Ve složce <b>HassaAFR</b> se nacházejí předpřipravené <span class="code">BAT</span> soubory pro rychlé spuštění. Jsou tři, každý pro jeden typ aplikace a každý aplikaci několikrát spustí s různými nastaveními pro různé scény. Pro ukončení právě zobrazené scény stisněte <span class="code">ESC</span>, aplikace se ukončí a bude pokračovat následující. Pokud aplikace nepůjdou spustit, je možný problém s knihovnami. Ve složce <span class="code">HassaAFR/dlls</span> jsou proto některé dynamické knihovny, které překopírujte do <span class="code">HassaAFR/bin</span>. Pokud ani přesto nepůjde aplikace spustit, je pravděpodobně problém s jejím zkompilováním (kompilováno na <strong>MinGW 4.6.1, Windows 7</strong>). Proto ve složce <span class="code">Source</span> pomocí příkazu <span class="code">make</span> zkompilujte zdrojové kódy znovu (pozor, spustitelné soubory se ukládají do <span class="code">Source/bin</span>).</p>
+			</div>
+			
+			<h3>Upozornění</h3>
+			<div>
+				<p>Soubory ve složce <span class="code">Source</span> obsahují nejen zdrojové kódy všech tří verzí aplikace, ale rovněž makefily a zálohu všech potřebných souborů (scény, konfigurace, dávkové bat soubry a dynamické knihovny). Všechny soubory lze nalézt i přímo ve složce <span class="code">HassaAFR</span>, která slouží pro skutečné používání aplikace. Pro jednoduchost stačí pouze do konzole napsat název jedné z připravených dávek a řídit se pokyny. Soubory ve složce <span class="code">Source</span> slouží tedy pouze jako záloha a pro kompilaci do spustitelných binárek. Po kompilaci je tedy nejvýhodnější přesunout obsah složky <span class="code">Source/bin</span> do složky <span class="code">HassaAFR/bin</span>.</p>
+			</div>		
+							
+			
+			<div class="footer">
+				Copyright &copy; 2012 <strong>Vojtěch Krupička</strong>, <a href="mailto:xkrupi06@stud.fit.vutbr.cz">xkrupi06@stud.fit.vutbr.cz</a>, all right reserved<br />
+				Fakulta informačních technologií VUT v Brně, Božetěchova 2, 612 66 Brno
+			</div>
+		</div>
+
+	</body>
+</html>

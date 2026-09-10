@@ -1,0 +1,360 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta http-equiv="cache-control" content="no-cache" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<meta name="author" content="Vojtěch Krupička, xkrupi06@stud.fit.vutbr.cz" />
+		<title>.: Bezsnímkové renderování | DIP 2012 | Vizuální výsledky :.</title>
+	
+		<style type="text/css">
+			* {margin:0;padding:0;}
+			body {margin:0; padding:0; background:#FFF; font-family:Verdana, Arial, sans-serif;
+						font-size: 12px;color:#000}
+			#container {margin:20px auto; padding:0; background:#FFF; width: 900px;color:#808080}
+			.menu 	  {margin: 10px 0;}
+			a         {color:#003365; text-decoration:underline}
+			a:hover   {color:#7F3F3C; text-decoration:none}
+			h1        {font-size:300%;color:#15356F;text-transform: uppercase;line-height:200%;position:relative;}
+			h1 a      {position:absolute;top:0;right:0;font-size:50%;line-height:400%;}
+			h2		  {font-size:200%;color:#15356F;border-top:1px #15356F solid;line-height:180%}
+			h3        {margin:20px 0 0 0;font-size:150%;color:#15356F;position:relative;line-height:200%}
+			h3 a      {position:absolute;top:0;right:0;font-size:50%;line-height:200%;}
+			h4        {margin:10px 0 0 0;line-height:150%;}
+			p         {font-size:98%;line-height:150%;text-align:justify;}
+			ul, ol	  {margin:10px 16px;}
+			li		  {margin:0 16px;line-height:150%;}
+			table     {margin:10px auto; width:90%; height:auto; border-collapse:collapse; border:1px #808080 solid;color:#000}
+			tr        {height:20px;background:#FFF8DC;}
+			th        {padding:4px 6px; border:1px #808080 solid;}
+			td        {padding:4px 6px; border:1px #808080 solid;}
+			.head     {height:40px;background:#ADD8E6;color:#003365}
+			.parent   {background:#F0F8F0}
+			.even     {background:#DFE7CF}
+			.center   {text-align:center;}
+			.left 	  {text-align:left;}
+			.bold     {font-weight:bold;}
+			.italic   {font-style:italic;}
+			img 	  {display: block; margin: 10px auto;}
+			
+			fieldset  {margin:10px auto;padding:20px 20px; border:1px #808080 solid;background:#F0F8F0;color:#000}
+			legend    {font-weight:bold;}
+			label     {margin:0 20px 0 0}
+			form      {margin:0 auto 20px auto;}
+			div.code	{background: #F0F8F0; margin: 11px auto; width:86%; font-family: "Courier New"; padding: 10px 20px; border: 1px #808080 solid;}
+			span.code	{background: #F0F8F0; font-family: "Courier New"; padding: 1px 2px}
+			.report_ko  {color: #F00; border: 1px #F00 solid; background: #FFDEAD}
+			.report_ok  {color: #003365; border: 1px #003365 solid; background: #ADD8E6}
+			
+			.footer   {margin:20px auto; padding:20px 0; border-top:1px #808080 solid;text-align:center}
+		</style>
+	
+	</head>
+	<body>
+	
+		<div id="container">
+			<h1>Bezsnímkové Renderování <a href="../index.html" title="Zpět na hlavní stránku">&laquo; Zpět</a></h1>
+			<h2>Vizuální výstup</h2>
+			
+			<div class="menu">
+				<a href="#visual" title="Vizuální výsledky">Vizuální výsledky</a> |
+				<a href="#graphs" title="Průběh chyby">Průběh chyby - grafy</a> |
+				<a href="#tests" title="Vyhodnocení testů">Vyhodnocení testů</a>
+			</div>
+			
+			<h3 id="visual">Vizuální výsledky <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Vizuální vísledky byly pořízeny pro všechny tři testované scény ve dvou časech, konkrétně pro scénu <em>skákající míč</em> v čase <span class="code">@00:00:04.56</span> (což odpovídá snímku 114) a v čase <span class="code">@00:00:07.48</span> (snímek 187). Pro scénu <em>Planeta Země</em> v čase <span class="code">@00:00:03.76</span> (což odpovídá snímku 94) a v čase <span class="code">@00:00:6.25</span> (což odpovídá snímku 156). A pro scénu <em>Planeta Země</em> pak v čase <span class="code">@00:00:04.16</span> (což odpovídá snímku 104) a v čase <span class="code">@00:00:07.25</span> (což odpovídá snímku 182). Jednotlivé vizuální výstupy pro všechny tři části adaptivní bezsnímkové metody jsou dostupné v seznamu níže:</p>
+				<ol>
+					<li>
+						Testovací scéna <em>Skákající míč</em>:
+						<ul>
+							<li>Základní <em>bezsnímková metoda</em>: čas <a href="fr_bball.html#frame114" title="@00:00:04.56 (snímek 114)">@00:00:04.56 (snímek 114)</a> | <a href="fr_bball.html#frame187" title="@00:00:07.48 (snímek 187)">@00:00:07.48 (snímek 187)</a>,</li>
+							<li><em>Řízené vzorkování</em>: čas <a href="gs_bball.html#frame114" title="@00:00:04.56 (snímek 114)">@00:00:04.56 (snímek 114)</a> | <a href="gs_bball.html#frame187" title="@00:00:07.48 (snímek 187)">@00:00:07.48 (snímek 187)</a>,</li>
+							<li><em>Rekonstrukce</em>: čas <a href="rc_bball.html#frame114" title="@00:00:04.56 (snímek 114)">@00:00:04.56 (snímek 114)</a> | <a href="rc_bball.html#frame187" title="@00:00:07.48 (snímek 187)">@00:00:07.48 (snímek 187)</a>.</li>
+						</ul>
+					</li>
+					
+					<li>
+						Testovací scéna <em>Planeta Země</em>:
+						<ul>
+							<li>Základní <em>bezsnímková metoda</em>: čas <a href="fr_earth.html#frame94" title="@00:00:03:76 (snímek 94)">@00:00:03:76 (snímek 94)</a> | <a href="fr_earth.html#frame156" title="@00:00:6.25 (snímek 156)">@00:00:6.25 (snímek 156)</a>,</li>
+							<li><em>Řízené vzorkování</em>: čas <a href="gs_earth.html#frame94" title="@00:00:03:76 (snímek 94)">@00:00:03:76 (snímek 94)</a> | <a href="gs_earth.html#frame156" title="@00:00:6.25 (snímek 156)">@00:00:6.25 (snímek 156)</a>,</li>
+							<li><em>Rekonstrukce</em>: čas <a href="rc_earth.html#frame94" title="@00:00:03:76 (snímek 94)">@00:00:03:76 (snímek 94)</a> | <a href="rc_earth.html#frame156" title="@00:00:6.25 (snímek 156)">@00:00:6.25 (snímek 156)</a>.</li>
+						</ul>
+					</li>
+					
+					<li>
+						Testovací scéna <em>Šachová figurka</em>:
+						<ul>
+							<li>Základní <em>bezsnímková metoda</em>: čas <a href="fr_pawn.html#frame104" title="@00:00:04.16 (snímek 104)">@00:00:04.16 (snímek 104)</a> | <a href="fr_pawn.html#frame182" title="@00:00:07.25 (snímek 182)">@00:00:07.25 (snímek 182)</a>,</li>
+							<li><em>Řízené vzorkování</em>: čas <a href="gs_pawn.html#frame104" title="@00:00:04.16 (snímek 104)">@00:00:04.16 (snímek 104)</a> | <a href="gs_pawn.html#frame182" title="@00:00:07.25 (snímek 182)">@00:00:07.25 (snímek 182)</a>,</li>
+							<li><em>Rekonstrukce</em>: čas <a href="rc_pawn.html#frame104" title="@00:00:04.16 (snímek 104)">@00:00:04.16 (snímek 104)</a> | <a href="rc_pawn.html#frame182" title="@00:00:07.25 (snímek 182)">@00:00:07.25 (snímek 182)</a>.</li>
+						</ul>
+					</li>
+				</ol>
+			</div>
+			
+			<h3 id="graphs">Průběh chyby - grafy <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<h4 class="center italic">Skákající míč</h4>
+				<a href="fr-bball.pdf" title="Základní bezsnímková metoda"><img src="images/bball/fr_graph.png" alt="" /></a>
+				<a href="gs-bball.pdf" title="Řízené vzorkování"><img src="images/bball/gs_graph.png" alt="" /></a>
+				<a href="rc-bball.pdf" title="Rekonstrukce"><img src="images/bball/rc_graph.png" alt="" /></a>
+				
+				<h4 class="center italic">Planeta Země</h4>
+				<a href="fr-earth.pdf" title="Základní bezsnímková metoda"><img src="images/earth/fr_graph.png" alt="" /></a>
+				<a href="gs-earth.pdf" title="Řízené vzorkování"><img src="images/earth/gs_graph.png" alt="" /></a>
+				<a href="rc-earth.pdf" title="Rekonstrukce"><img src="images/earth/rc_graph.png" alt="" /></a>
+				
+				<h4 class="center italic">Šachová figurka</h4>
+				<a href="fr-pawn.pdf" title="Základní bezsnímková metoda"><img src="images/pawn/fr_graph.png" alt="" /></a>
+				<a href="gs-pawn.pdf" title="Řízené vzorkování"><img src="images/pawn/gs_graph.png" alt="" /></a>
+				<a href="rc-pawn.pdf" title="Rekonstrukce"><img src="images/pawn/rc_graph.png" alt="" /></a>
+			</div>
+			
+			<h3 id="tests">Vyhodnocení testů <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Jednotlivé testy byly prováděny pro všechny možné parametry pro všechny tři testovací scény na všech třech částech <em>adaptivní</em> metody. Nastavení byla následující:</p>
+				<ul>
+					<li>
+						Základní <em>bezsnímková metoda</em>: různé metody pro výběr pozice vzorku 
+						<ul>
+							<li>Náhodný výběr,</li>
+							<li><em>Haltonova</em> posloupnost,</li> 
+							<li>Poissonovy disky,</li> 
+							<li><em>Jittered</em> vzorkování,</li>
+							<li>Problém <em>n</em> věží.</li>
+						</ul>
+					</li>
+					<li>
+						<em>Řízené vzorkování</em>: 
+						<ul>
+							<li><em>Haltonova</em> posloupnost,</li>
+							<li>různé počty oblastí horizontálně a vertikálně (8 &times; 8, 32 &times; 32, 64 &times; 64),</li>
+							<li>různé hodnoty faktoru <em>s</em> (100, 250, 500, 750, 1 000),</li>
+						</ul>
+					</li>
+					<li>
+						<em>Rekonstrukce</em>: 
+						<ul>
+							<li><em>Haltonova</em> posloupnost,</li>
+							<li>počet oblastí 32 &times; 32,</li>
+							<li>faktor <em>s = 100</em>,</li>
+							<li>různé počty vzorků aktualizovaných v jednom kroku (2 250, 4 500, 9 000, 18 000).</li>
+						</ul>
+					</li>
+				</ul>
+				
+				<p>Vyhodnocení testů pro všechny tři scény jsou shrny v následujících tabulkách:</p>
+				
+				
+				<h4 class="center">Základní <em>bezsnímková metoda</em></h4>
+				<table>
+					<tr>
+						<th>&nbsp;</th>
+						<th>Náhodný výběr</th>
+						<th><em>Haltonova</em> posloupnost</th>
+						<th>Poissonovy disky</th> 
+						<th><em>Jittered</em> vzorkování</th>
+						<th>Problém <em>n</em> věží</th>
+					</tr>
+		
+					<tr>
+						<th class="left"><em>Skákající míč</em></th>
+						<td class="center">3,321%</td>
+						<td class="center bold">2,973%</td>
+						<td class="center">3,315%</td>
+						<td class="center">3,322%</td>
+						<td class="center">3,281%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Planeta Země</em></th>
+						<td class="center">8,425%</td>
+						<td class="center bold">6,415%</td>
+						<td class="center">8,424%</td>
+						<td class="center">8,441%</td>
+						<td class="center">8,469%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Šachová figurka</em></th>
+						<td class="center">0,920%</td>
+						<td class="center bold">0,638%</td>
+						<td class="center">0,930%</td>
+						<td class="center">0,925%</td>
+						<td class="center">0,906%</td>
+					</tr>
+				</table>
+				
+				
+				<h4 class="center"><em>Řízené vzorkování</em></h4>
+				<table>
+					<tr>
+						<th>8 &times; 8</th>
+						<th>s = 100</th>
+						<th>s = 250</th>
+						<th>s = 500</th> 
+						<th>s = 750</th>
+						<th>s = 1 000</th>
+					</tr>
+		
+					<tr>
+						<th class="left"><em>Skákající míč</em></th>
+						<td class="center">2,566%</td>
+						<td class="center">2,275%</td>
+						<td class="center bold">2,217%</td>
+						<td class="center">2,225%</td>
+						<td class="center">2,236%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Planeta Země</em></th>
+						<td class="center">5,169%</td>
+						<td class="center bold">4,601%</td>
+						<td class="center">4,617%</td>
+						<td class="center">4,833%</td>
+						<td class="center">4,989%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Šachová figurka</em></th>
+						<td class="center">0,528%</td>
+						<td class="center">0,502%</td>
+						<td class="center">0,477%</td>
+						<td class="center">0,465%</td>
+						<td class="center bold">0,459%</td>
+					</tr>
+				</table>
+				<table>		
+					<tr>
+						<th>32 &times; 32</th>
+						<th>s = 100</th>
+						<th>s = 250</th>
+						<th>s = 500</th> 
+						<th>s = 750</th>
+						<th>s = 1 000</th>
+					</tr>
+		
+					<tr>
+						<th class="left"><em>Skákající míč</em></th>
+						<td class="center">1,707%</td>
+						<td class="center bold">1,494%</td>
+						<td class="center">1,563%</td>
+						<td class="center">1,603%</td>
+						<td class="center">1,649%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Planeta Země</em></th>
+						<td class="center">3,911%</td>
+						<td class="center bold">3,679%</td>
+						<td class="center">3,977%</td>
+						<td class="center">4,333%</td>
+						<td class="center">4,552%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Šachová figurka</em></th>
+						<td class="center">0,626%</td>
+						<td class="center">0,608%</td>
+						<td class="center">0,575%</td>
+						<td class="center">0,560%</td>
+						<td class="center bold">0,547%</td>
+					</tr>
+				</table>
+				<table>	
+					<tr>
+						<th>64 &times; 64</th>
+						<th>s = 100</th>
+						<th>s = 250</th>
+						<th>s = 500</th> 
+						<th>s = 750</th>
+						<th>s = 1 000</th>
+					</tr>
+		
+					<tr>
+						<th class="left"><em>Skákající míč</em></th>
+						<td class="center">2,113%</td>
+						<td class="center bold">1,657%</td>
+						<td class="center">1,667%</td>
+						<td class="center">1,713%</td>
+						<td class="center"> 1,749%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Planeta Země</em></th>
+						<td class="center">4,873%</td>
+						<td class="center bold">4,395%</td>
+						<td class="center">4,647%</td>
+						<td class="center">4,933%</td>
+						<td class="center">5,126%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Šachová figurka</em></th>
+						<td class="center">0,689%</td>
+						<td class="center">0,665%</td>
+						<td class="center">0,629%</td>
+						<td class="center">0,616%</td>
+						<td class="center bold">0,601%</td>
+					</tr>
+				</table>
+				
+				
+				<h4 class="center"><em>Rekonstrukce</em></h4>
+				<table>
+					<tr>
+						<th>&nbsp;</th>
+						<th>2 250 vzorků</th>
+						<th>4 500 vzorků</th>
+						<th>9 000 vzorků</th> 
+						<th>18 000 vzorků</th>
+						<th><em>Halton</em></th>
+						<th><em>32 &times; 32, s = 250</em></th>
+					</tr>
+		
+					<tr>
+						<th class="left"><em>Skákající míč</em></th>
+						<td class="center">3,205%</td>
+						<td class="center">2,138%</td>
+						<td class="center">1,658%</td>
+						<td class="center bold">1,361%</td>
+						<td class="center italic">2,973%</td>
+						<td class="center italic">1,494%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Planeta Země</em></th>
+						<td class="center">8,049%</td>
+						<td class="center">5,001%</td>
+						<td class="center">3,783%</td>
+						<td class="center bold">2,862%</td>
+						<td class="center italic">6,415%</td>
+						<td class="center italic">3,679%</td>
+					</tr>
+					
+					<tr>
+						<th class="left"><em>Šachová figurka</em></th>
+						<td class="center">2,127%</td>
+						<td class="center">1,133%</td>
+						<td class="center">0,758%</td>
+						<td class="center bold">0,583%</td>
+						<td class="center italic">0,638%</td>
+						<td class="center italic">0,608%</td>
+					</tr>
+				</table>
+		
+			</div>
+			
+			
+			<div class="footer">
+				Copyright &copy; 2012 <strong>Vojtěch Krupička</strong>, <a href="mailto:xkrupi06@stud.fit.vutbr.cz">xkrupi06@stud.fit.vutbr.cz</a>, all right reserved<br />
+				Fakulta informačních technologií VUT v Brně, Božetěchova 2, 612 66 Brno
+			</div>
+		</div>
+
+	</body>
+</html>

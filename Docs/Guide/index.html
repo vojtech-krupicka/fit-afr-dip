@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta http-equiv="cache-control" content="no-cache" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<meta name="author" content="Vojtěch Krupička, xkrupi06@stud.fit.vutbr.cz" />
+		<title>.: Bezsnímkové renderování | DIP 2012 :.</title>
+	
+		<style type="text/css">
+			* {margin:0;padding:0;}
+			body {margin:0; padding:0; background:#FFF; font-family:Verdana, Arial, sans-serif;
+						font-size: 12px;color:#000}
+			#container {margin:20px auto; padding:0; background:#FFF; width: 900px;color:#808080}
+			.menu 	  {margin: 10px 0;}
+			a         {color:#003365; text-decoration:underline}
+			a:hover   {color:#7F3F3C; text-decoration:none}
+			h1        {font-size:300%;color:#15356F;text-transform: uppercase;line-height:200%;position:relative;}
+			h1 a      {position:absolute;top:0;right:0;font-size:50%;line-height:400%;}
+			h2		  {font-size:200%;color:#15356F;border-top:1px #15356F solid;line-height:180%}
+			h3        {margin:20px 0 0 0;font-size:150%;color:#15356F;position:relative;line-height:200%}
+			h3 a      {position:absolute;top:0;right:0;font-size:50%;line-height:200%;}
+			h4        {margin:10px 0 0 0;line-height:150%;}
+			p         {text-indent:32px;font-size:98%;line-height:150%;text-align:justify;}
+			p:first-child	  {text-indent:0;}
+			ul, ol	  {margin:10px 16px;}
+			li		  {margin:0 16px;line-height:150%;}
+			table     {margin:10px auto; width:90%; height:auto; border-collapse:collapse; border:1px #808080 solid;color:#000}
+			tr        {height:20px;background:#FFF8DC;}
+			th        {padding:4px 6px; border:1px #808080 solid;}
+			td        {padding:4px 6px; border:1px #808080 solid;}
+			.head     {height:40px;background:#ADD8E6;color:#003365}
+			.parent   {background:#F0F8F0}
+			.even     {background:#DFE7CF}
+			.center   {text-align:center;}
+			.left 	  {text-align:left;}
+			.bold     {font-weight:bold;}
+			.italic   {font-style:italic;}
+			img 	  {display: block; margin: 10px auto;}
+			
+			dl		  {margin:16px;}
+			dt		  {margin:8px 0 0 0;line-height:150%;}
+			dd		  {margin:0 0 0 32px;line-height:150%;}
+			
+			fieldset  {margin:10px auto;padding:20px 20px; border:1px #808080 solid;background:#F0F8F0;color:#000}
+			legend    {font-weight:bold;}
+			label     {margin:0 20px 0 0}
+			form      {margin:0 auto 20px auto;}
+			div.code	{background: #F0F8F0; margin: 11px auto; width:86%; font-family: "Courier New"; padding: 10px 20px; border: 1px #808080 solid;}
+			span.code	{background: #F0F8F0; font-family: "Courier New"; padding: 1px 2px}
+			.report_ko  {color: #F00; border: 1px #F00 solid; background: #FFDEAD}
+			.report_ok  {color: #003365; border: 1px #003365 solid; background: #ADD8E6}
+			
+			.footer   {margin:20px auto; padding:20px 0; border-top:1px #808080 solid;text-align:center}
+		</style>
+	
+	</head>
+	<body>
+	
+		<div id="container">
+			<h1>Bezsnímkové Renderování <a href="../../README.html" title="Zpět na hlavní stránku">&laquo; Zpět</a></h1>
+			<h2>Frameless Rendering</h2>
+			
+			<div class="menu">
+				<a href="#overview" title="Přehled">Přehled</a> |
+				<a href="#crossroad" title="Rozcestník">Rozcestník</a> |
+				<a href="#dvd-content" title="Obsah DVD">Obsah DVD</a>
+			</div>
+			
+			<h3 id="overview">Přehled <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Vítejte v uživatelské příručce pro aplikaci <strong>HassaAF Renderer</strong>, která vznikla jako praktická ukázka činnosti metody <em>bezsnímkového renderování</em> v rámci diplomové práce na <acronym title="Fakulta Informačních Tenchologií">FIT</acronym> v roce 2012. Kromě vlastní aplikace a zdrojových kódu je na DVD vypáleno i množství doplňujících materiálů. Jejich popis a použití následuje zde.</p> 
+			</div>
+			
+			<h3 id="crossroad">Rozcestník <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Pro lepší navigaci mezi jednotlivými soubory na tomto DVD je přítomen krátký rozcestník:</p>
+				<ul>
+					<li><a href="../../README.html" title="README.html">README.html</a> - Soubor <span class="code">README</span> se základními informacemi,</li>
+					<li><a href="help/index.html" title="Nápověda">Nápověda</a> - nápověda pro vlastní demonstrační aplikaci, popisující její instalaci, spuštění a vlastní ovládání,</li>
+					<li><a href="config/index.html" title="Konfigurace (formát INI)">Konfigurace (formát INI)</a> - popis formátu <span class="code">INI</span> pro konfiguraci aplikace, vysvětlení jednotlivých parametrů a příklad konfiguračního souboru,</li>
+					<li><a href="results/index.html" title="Vizuální výsledky">Vizuální výsledky</a> - shrnutí výsledků a ukázka vizuálních výsledků pro všech tři testovací scény ve dvou různých časových okamžicích animace. Jelikož se nevešly do hlavní zprávy, jsou shrnuty zde, včetně grafů a vyhodnocení výsledků pro jednotlivé části metody.</li>
+					<li><a href="../Trunk/index.html" title="Programová dokumentace">Programová dokumentace</a> - kompletní programová dokumentace ve formátu HTML generovaná systémem <strong>Doxygen</strong>,</li>
+					<li><a href="../Videos/" title="Videa">Videa</a> - složka obsahující dvě videa (<a href="../Videos/vol1_HD.mp4" title="Vol. 1">vol. 1</a> a <a href="../Videos/vol2_HD.mp4" title="Vol. 2">vol. 2</a>) pro demonstraci činnosti aplikace.</li>
+				</ul>
+			</div> 
+				
+			<h3 id="dvd-content">Obsah DVD <a href="#container" title="Nahoru">nahoru</a></h3>
+			<div>
+				<p>Toto DVD obsahuje všechny materiály, které vznikly spolu s demonstrační aplikací při práci na diplomové práci. Adresářová struktura DVD je následující:</p>
+				
+				<ul>
+					<li>
+						<span class="code">root</span>
+						<ul>
+							<li>
+								<span class="code">Docs</span> - uživatelská příručka a programová dokumentace, dále obsahuje všechny pomocné soubory a výstupy.
+								<ul>
+									<li><span class="code">DVD Cover</span> - obal DVD, který byl vypálen přímo na nosič, včetně jeho zdrojového souboru ve formátu <span class="code">svg</span>.</li>
+									<li><span class="code">Guide</span> - uživatelská příručka včetně vizuálních výstupů v podobě obrázků a popisu instalace, nastavení a ovládání demonstrační aplikace.</li>
+									<li><span class="code">Poster</span> - plakát, který byl vytvořen pro reprezentaci této práce ve formátu <span class="code">pdf</span> a jeho zdrojový soubor ve formátu <span class="code">svg</span>.</li>
+									<li><span class="code">Trunk</span> - programová dokumentace k aplikaci generovaná nástrojem <strong>Doxygen</strong>.</li>
+									<li><span class="code">Videos</span> - dvě videa pořízená pro demonstraci činnosti aplikace na všech třech testovaných scénách. Videa zachycují všechny tři části adaptivní metody pro různá nastavení. První video s názvem <strong>vol1</strong> obsahuje výstupy pouze pro scénu <em>skákající míč</em>. Druhé video s názvem <strong>vol2</strong> pak zachycuje výstupy pro zbývající scény <em>planeta Země</em> a <em>šachová figurka</em>. Rovněž jsou přítomny jednotlivé sekvence rozdělené do jednotlivých souborů ve složce <span class="code">Sequences</span>.</li>
+								</ul>
+							</li>
+							<li><span class="code">HassaAFR</span> - složka s již zkompilovanou aplikací včetně všech potřebných souborů pro její spuštění.</li>
+							<li><span class="code">Report</span> - elektronická zpráva diplomové práce ve formátu <span class="code">pdf</span>. Rovněž obsahuje její zdrojové soubory pro systém <strong>LaTeX</strong>.</li>
+							<li><span class="code">Source</span> - zdrojové kódy aplikace, rozdělené do příslušných složek s makefilem pro jejich kompilaci a případné odstranění.</li>
+						</ul>
+					</li>
+				</ul>
+				
+				
+			</div>
+			
+			<div class="footer">
+				Copyright &copy; 2012 <strong>Vojtěch Krupička</strong>, <a href="mailto:xkrupi06@stud.fit.vutbr.cz">xkrupi06@stud.fit.vutbr.cz</a>, all right reserved<br />
+				Fakulta informačních technologií VUT v Brně, Božetěchova 2, 612 66 Brno
+			</div>
+		</div>
+
+	</body>
+</html>

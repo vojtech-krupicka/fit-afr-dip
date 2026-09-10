@@ -1,0 +1,148 @@
+%----------------------------------------------------------------------------
+% soubor: 5_tests.tex
+% autor: Vojtìch Krupièka, xkrupi06
+% datum: 06.01.2012
+%----------------------------------------------------------------------------
+\chapter{Testování a vyhodnocení}
+\label{chap:5_tests}
+
+Testování demonstraèní aplikace se zamìøilo pøedev¹ím na kvalitu výstupu \emph{bezsnímkového rendereru}, která byla mìøena pomocí \uv{ideálního} rendereru -- rendereru s nulovou odezvou. Ten byl schopen aktualizovat po¾adovaný poèet vzorkù v jednom èasovém okam¾iku simulací ubíhajícího èasu animace. Výkon aplikace je v tomto pøípadì sporný, nebo» ji¾ z podstaty metody \emph{bezsnímkového renderování} je mo¾né pøímo nastavit po¾adovaný poèet snímkù za vteøinu, který je pak pevnì daný po celý bìh aplikace.
+
+
+\section{Testovací scény}
+\label{sec:5_testing_scenes}
+
+Testovací scény byly zvoleny celkem tøi (viz obrázek~\ref{fig:5_testing_scenes}) a v¹echny jsou ve své podstatì velmi jednoduché, pøesto rozlièné a ka¾dá se zamìøuje na demonstraci jiného problému. První testovací scéna, \emph{skákající míè}, je klasickým pøípadem scény, který demonstruje pohyb pøedmìtù ve statickém okolí. Scéna se skládá ze ètyø stìn, podlahy a stropu tvoøících krychli. Pod stropem je umístìno jediné svìtlo. Uvnitø krychle je koule -- míè --, který dopadá ze vzduchu na podlahu a odrá¾í se zpìt, pøièem¾ se pohybuje zleva doprava. Scéna se skákajícím míèem má demonstrovat zmìnu geometrie scény v èase a to tak, ¾e vìt¹ina obrazu je po celou dobu animace statická a jen její minoritní èást se mìní. Dùle¾itým faktorem v této scénì je stín vr¾ený koulí na podlahu a stìny.
+
+Druhá scéna, \emph{planeta Zemì}, je je¹tì jednodu¹¹í a obsahuje jedinou kouli, která pøedstavuje planetu Zemi a jedno svìtlo (Slunce). Koule je pota¾ena odpovídající texturou a v èase je statická. Dochází ale k pohybu kamery, která se otáèí zleva doprava a zpìt, pak obraz oddálí a nakonec pøiblí¾í. Cílem scény je zaznamenat pohyb v¹ech pøedmìtù ve scénì a jejich textur. Pøesto ¾e dochází pouze k pohybu kamery, v prùbìhu celé animace dojde k potøebì aktualizovat témìø v¹echny pixely rastru. Poslední scéna, \emph{¹achová figurka}, obsahuje jednu ¹achovou figurku z lesklého zlatého materiálu ($2\,400$ trojúhelníkù) a jedno svìtlo. Geometrie i kamera je statická, pohybuje se pouze svìtlo. Nejprve zleva doprava a následnì zpìt. Cílem scény je demonstrovat zachycení vr¾eného stínu v èase na tìle figurky. 
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[\emph{Skákající míè}]{\includegraphics[width=5cm, height=5cm]{./fig/bball_ideal.png} \label{fig:4_ts-bball}}
+	\subfloat[\emph{Planeta Zemì}]{\includegraphics[width=5cm, height=5cm]{./fig/earth_ideal.png} \label{fig:4_ts-earth}}
+	\subfloat[\emph{©achová figurka}]{\includegraphics[width=5cm, height=5cm]{./fig/pawn_ideal.png} \label{fig:4_ts-pawn}}
+	\caption{Ukázka testovacích scén pou¾ívaných v dal¹ím textu pro demonstraci vizuálních výsledkù jednotlivých èástí \emph{bezsnímkového rendereru}. Scény jsou zachyceny v konkrétním kroku jejich animace a renderovány na rozli¹ení $256\times256$ pouze pomocí \emph{raytraceru} bez \emph{supersamplingu}. Jedná se tedy o referenèní \uv{ideální} výstupy.}
+	\label{fig:5_testing_scenes}
+\end{figure}
+
+
+\section{Metriky pro testování}
+\label{sec:5_metrics}
+
+Pro testování a vyhodnocení kvality jednotlivých èástí bezsnímkové metody bylo nutné stanovit metriky, kterými lze urèit výslednou chybu oproti ideálnímu obrazu. Pøi hledání metrik bylo vycházeno z~\cite{DWWL05}, kde je porovnán výstup \emph{bezsnímkového rendereru} v konkrétním èasovém okam¾iku s ideálním výstupem z \emph{raytraceru}. Rozdíl intenzit jednotlivých pixelù pak udává výslednou chybu. Bezsnímkový výstup byl porovnáván v¾dy pøi pøechodu na nový klíèový snímek animace. Tento postup je velmi jednoduchý a intuitivní, ale rozhodnì není ¹patný, nebo» jak je uvedeno v~\cite{Z96}, je v ka¾dém èasovém okam¾iku pøítomný aktuální výstup \emph{bezsnímkového rendereru}\footnote{Ostatnì s pøihlédnutím k algoritmu~\ref{alg:2_fr_extended} je v¾dy pøítomen \emph{frame buffer} a ten obsahuje celý, i kdy¾ z vìt¹í èásti zastaralý snímek.}. Samotné vyèíslení chyby bylo provedeno pøes v¹echny snímky animace, kde pro ka¾dý snímek byla chyba poèítána podle rovnice:
+
+\begin{equation}
+	\sigma = \dfrac{1}{w \cdot h} \sum_{x = 1}^{w}\sum_{y = 1}^{y} i(x, y) \mathrm{,}
+	\label{eq:5_testing_deviance}
+\end{equation}
+
+\noindent kde $w$ udává ¹íøku a $h$ vý¹ku obrazu v pixelech a $i(x, y)$ je intenzita barvy pixelu na dané pozici po rozdílu mezi obìma výstupy. Chyba tedy udává prùmìrný rozdíl v intenzitách barev mezi aktuálním výstupem \emph{bezsnímkového rendereru} a ideálním obrazem. Jak ji¾ bylo øeèeno, simulace probíhala pomocí rendereru s nulovou odezvou, výchozí metoda pro výbìr vzorkù pro øízené vzorkování a rekonstrukci byla \emph{Haltonova} posloupnost a poèet oblastí byl $32 \times 32$ a pro rekonstrukci byl zvolen faktor $s = 100$.  
+
+
+\section{Základní varianta \emph{bezsnímkové} metody}
+\label{sec:5_fr}
+
+Testování základní varianty se zamìøilo na porovnání výstupu mezi jednotlivými metodami pro výbìr vzorkù pro aktualizaci, které byly pøedstaveny v kapitole~\ref{sec:2_monte_carlo}. Vizuální výsledky jsou znázornìny na obrázku~\ref{fig:5_fr} a jednotlivé chyby pak v grafu~\ref{fig:5_graph-fr}. Porovnáním klasických metod pro výbìr vzorkù lze dojít k závìru, ¾e si jsou velmi podobné a nìkteré dosahují dokonce hor¹ích výsledkù ne¾ pùvodnì navrhovaný náhodný výbìr vzorkù. Ten dosahuje srovnatelných výsledkù pøedev¹ím díky kvalitnímu generátoru pseudonáhodných èísel, který byl implementován podle~\cite{SM03}. \emph{Haltonova} posloupnost se skuteènì ukazuje jako nejlep¹í napøíè v¹emi testy a vizuální výsledky jsou rovnì¾ nejlep¹í (stejnì jako v~\cite{S06}). Pokrytí projekèní roviny je daleko lep¹í ne¾ u ostatních metod a nedochází ke shlukování vzorkù.
+
+
+\section{Øízené vzorkování}
+\label{sec:5_gs}
+
+Pro testování øízeného vzorkování byla zvolena pouze \emph{Haltonova} posloupnost jako vítìzná metoda pro výbìr nového vzorku k aktualizaci. Testování pak bylo rozdìleno podle poètu oblastí v obou smìrech a testovány byly poèty $8 \times 8$, $32 \times 32$ a $64 \times 64$. Pro ka¾dý z tìchto poètù pak byly testy dále dìleny podle hodnoty faktoru $s$, která byla volena z mno¾iny $\{100, 250, 500, 750, 1\,000\}$, kde hodnota $1\,000$ dává váhu zhruba $10\%$ tìm oblastem, je¾ nebyly vybrány tøi vteøiny.
+
+Vizuální výsledky jsou zobrazeny na obrázcích~\ref{fig:5_gs_bball} a~\ref{fig:5_gs_earth_pawn}, z dùvodu ¹etøení místem jsou zobrazeny pouze ty nejzajímavìj¹í varianty. Pøehled výsledkù odchylky od ideálního výstupu je pak v grafu~\ref{fig:5_graph-gs}. Dosa¾ené výsledky jsou zde sporné. Pro první dvì testovací scény jasnì vítìzí poèet oblastí $32 \times 32$ a hodnota faktoru $s = 250$. Pro tøetí scénu, \emph{¹achová figurka}, v¹ak byly nejlep¹í výsledky namìøeny pro poèet oblastí $8 \times 8$, co¾ v¹ak vizuální výsledky nepotvrzují (viz obrázky~\ref{fig:5_gs_pawn-5} versus~\ref{fig:5_gs_pawn-7}). Faktor $s$ pak dává pro v¹echny uva¾ované poèty oblastí nejlep¹í výsledky pro hodnotu $1\,000$ co¾ je zpùsobeno samotnou podstatou scény. Jeliko¾ se mìní pouze osvìtlení a stín na tìle figurky, i velmi staré vzorky mají stále platnou hodnotu a proto se pravdìpodobnost pro výbìr oblasti mìní jen velmi zvolna. Tomu se dìje zejména na okrajích figurky.
+
+
+\section{Rekonstrukce}
+\label{sec:5_rc}
+
+Cílem rekonstrukce je odstranit nebo alespoò potlaèit výskyt prostorového rozptylu rozmazáním obrazu. Pro testování bylo zvoleno nastavení rùzného poètu vzorkù, které se budou aktualizovat v jednom kroku. Je jasné, ¾e vy¹¹í poèty by mìly dávat lep¹í výsledky a lépe se vypoøádat s aliasy. A výsledky tomu jednoznaènì odpovídají. Vizuální výsledky jsou znázornìny na obrázku~\ref{fig:5_rc} a velikost chyby je shrnuta v grafu~\ref{fig:5_graph-rc}. Pro testování byl poèet oblastí nastaven na $32 \times 32$, faktor $s = 100$ a poèty vzorkù byly voleny z mno¾iny $\{2\,250, 4\,500, 9\,000, 18\,000\}$.
+
+Nejlep¹ích výsledkù bylo podle oèekávání dosa¾eno pro v¹echny testovací scény pro $18\,000$ vzorkù na jeden iteraèní cyklus. Pøesto je zajímavé sledovat rozdíly v chybì. Zatímco pro scénu \emph{skákající míè} dává $9\,000$ vzorkù daleko lep¹í výsledky oproti $4\,500$, rozdíl od $18\,000$ ji¾ není tak razantní a jeliko¾ se jedná o dvojnásobnou zátì¾, je nutné se zamyslet, zda výsledná kvalita odpovídá nepøíjemnému sní¾ení odezvy. Jinými slovy je nutné hledat ideální pomìr mezi kvalitou a rychlostí výpoètu, ostatnì jako u vìt¹iny aplikací zobrazujících poèítaèovou grafiku v reálném èase. Pro ni¾¹í poèty jsou pak vizuální výsledky velmi nepøesvìdèivé a výstup trpí daleko více artefakty nebo je více rozmazaný.
+
+
+\section{Zhodnocení výsledkù}
+\label{sec:5_evaluation}
+
+Jednotlivé vizuální výstupy pro v¹echny èásti \emph{bezsnímkové} metody ji¾ byly pøedstaveny a diskutovány v pøedchozích èástech této kapitoly, stejnì jako míra chyby pro v¹echna mo¾ná nastavení a v¹echny testovací scény. Sama aplikace splòuje kritéria stanovená pøed zaèátkem jejího vývoje a pøesto, ¾e nedosahuje úplnì $100\%$ výstupu a není úplnì nejefektivnìj¹í, zvládá aktualizovat okolo $60\,000$ vzorkù v rámci rekonstrukce a zhruba dvojnásobek bez ní. Proto je mo¾né její reálné vyu¾ití pro zobrazování jednoduchých scén na ni¾¹ím rozli¹ení. 
+
+Hlavním cílem v¹ech provedených testù bylo demonstrovat pøínos \emph{adaptivní} varianty do základní \emph{bezsnímkové} metody. Sama \emph{bezsnímková} metoda byla podrobena zkoumání vlivu rùzných pøístupù pro výbìr nového pixelu vhodného pro aktualizaci. Jak se ukázalo, èistì náhodný výbìr nestaèí a ostatní navrhované metody dosáhly témìø shodných výsledkù a stejnì tak propadly. Naopak se jako zásadní krok ukázalo vyu¾ití \emph{Haltonovy} posloupnosti, která ve v¹ech testovacích scénách dosahovala výraznì ni¾¹í chyby a vizuální výsledky byly kompaktnìj¹í a netrpìly shlukováním vzorkù.
+
+Øízené vzorkování pak s vyu¾itím \emph{Haltonovy} posloupnosti pøineslo dal¹í zlep¹ení výstupu, pøedev¹ím odstranìním artefaktù a neplatných pixelù v oblastech rastru, kde je ji¾ scéna statická. Díky upøednostnìní urèitých oblastí rastru mohlo být vzorkování soustøedìno právì tam, kde se odehrává nìjaká animace, nebo scéna prochází razantní zmìnou geometrie nebo osvìtlení. Cílem testù bylo demonstrovat rozdílné chování øízeného vzorkování v závislosti na zvoleném poètu oblastí v obou smìrech a na hodnotì faktoru $s$. Precizním nastavením obou hodnot lze dosáhnout velmi kvalitních výsledkù. Samotná rekonstrukce pøiná¹í dal¹í zkvalitnìní výstupu (vèetnì øe¹ení anti-aliasingu zcela zadarmo) a sní¾ení celkové chyby. Kvalita výstupu pak závisí na celkovém poètu vzorkù, které je aplikace schopna aktualizovat v jednom cyklu. Jak bylo ukázáno, pro $9\,000$ vzorkù bylo dosa¾eno ji¾ pøijatelných výsledkù, pøièem¾ se jedná o pouhých $14\%$ z celkového poètu pixelù. Zde v¹ak bohu¾el le¾í kámen úrazu, nebo» sama aplikace pøi reálném bìhu doká¾e aktualizovat pouze $2\,500$ vzorkù v jednom prùchodu, co¾ výslednou kvalitu výstupu nepøíjemnì degraduje. Pøesto je nutné znovu zopakovat, ¾e metoda \emph{bezsnímkového renderování} není metodou pro fotorealistické zobrazování poèítaèové grafiky.
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[Základní metoda]{\includegraphics[width=11.65cm]{./fig/graphs/graph_fr.pdf} \label{fig:5_graph-fr}} \\
+	\subfloat[Øízené vzorkování]{\includegraphics[width=11.55cm]{./fig/graphs/graph_gs.pdf} \label{fig:5_graph-gs}} \\
+	\subfloat[Rekonstrukce]{\includegraphics[width=11.65cm]{./fig/graphs/graph_rc.pdf} \label{fig:5_graph-rc}} \\
+	
+	\caption{Grafy zachycující chybu v ka¾dém klíèovém snímku celé animace (testovací scéna \emph{skákající míè}), ve sloupcích jsou prùmìrné hodnoty chyby pro celou animaci. Animace zaèíná na $38$ snímku a konèí na snímku $213$. Pro základní metodu dosahuje nejlep¹ích výsledkù \emph{Haltonova} posloupnost její¾ chyba je témìø po celou dobu animace ni¾¹í ne¾ u ostatních metod; ty dosahují prakticky shodných výsledkù. Pro øízené vzorkování jsou rozdíly mezi rùznými hodnotami faktoru $s$ minimální, v grafu je zobrazena chyba pro rùzné poèty oblastí. U rekonstrukce je potvrzeno, ¾e èím více vzorkù je aktualizováno v jednom cyklu, tím je chyba ni¾¹í. Pro zbývající dvì scény jsou prùbìhy chyby podobné.}
+	\label{fig:5_graphs}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[\emph{Haltonova} posloupnost]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_halton.png} \label{fig:5_fr_bball-halton}}
+	\subfloat[Náhodný výbìr]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_random.png} \label{fig:5_fr_bball-random}} \\
+	\subfloat[\emph{Poissonovy disky}]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_poisson.png} \label{fig:5_fr_bball-poisson}}
+	\subfloat[\emph{Jittered} vzorkování]{\includegraphics[width=7.5cm]{./fig/basic_fr/bball/bball_jitter.png} \label{fig:5_fr_bball-jitter}} \\
+	\subfloat[\emph{Haltonova} posloupnost]{\includegraphics[width=7.5cm]{./fig/basic_fr/earth/earth_halton} \label{fig:5_fr_earth-halton}}
+	\subfloat[Náhodný výbìr]{\includegraphics[width=7.5cm]{./fig/basic_fr/earth/earth_random.png} \label{fig:5_fr_earth-random}} \\
+	\subfloat[\emph{Haltonova} posloupnost]{\includegraphics[width=7.5cm]{./fig/basic_fr/pawn/pawn_halton} \label{fig:5_fr_pawn-halton}}
+	\subfloat[Náhodný výbìr]{\includegraphics[width=7.5cm]{./fig/basic_fr/pawn/pawn_random.png} \label{fig:5_fr_pawn-random}} \\
+
+	\caption{Vizuální výsledky základní \emph{bezsnímkové} metody pro v¹echny testovací scény. V levém obrázku je zobrazen aktuální výstup rendereru, na obrázku vpravo potom jeho rozdíl s ideálním výstupem, získaným z \emph{raytraceru}. Z obrázkù je jasnì patrný rozdíl mezi \emph{Haltonovou} posloupností a náhodným výbìrem pozice vzorku. Ostatní metody pro výbìr pozice vzorku mají srovnatelné výsledky s náhodným výbìrem.}
+	\label{fig:5_fr}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[$8 \times 8, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_08x08-s0100.png} \label{fig:5_gs_bball-1}}
+	\subfloat[$8 \times 8, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_08x08-s0500.png} \label{fig:5_gs_bball-2}} \\
+	\subfloat[$32 \times 32, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_32x32-s0100.png} \label{fig:5_gs_bball-3}}
+	\subfloat[$32 \times 32, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_32x32-s0250.png} \label{fig:5_gs_bball-4}} \\
+	\subfloat[$32 \times 32, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_32x32-s0500.png} \label{fig:5_gs_bball-5}}
+	\subfloat[$32 \times 32, s = 1000$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_32x32-s1000.png} \label{fig:5_gs_bball-6}} \\
+	\subfloat[$64 \times 64, s = 100$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_64x64-s0100.png} \label{fig:5_gs_bball-7}}
+	\subfloat[$64 \times 64, s = 500$]{\includegraphics[width=7.5cm]{./fig/guiding/bball/bball_64x64-s0500.png} \label{fig:5_gs_bball-8}}
+	
+	\caption{Øízené vzorkování pro scénu \emph{skákající míè}. Obrázky ukazují rozdílné výsledky jak pro rùzný poèet oblastí, tak pro rùzné hodnoty faktoru $s$ (viz obrázek~\ref{fig:4_lambda_fn}). Na ka¾dé dvojici obrázkù je vlevo zobrazen aktuální výstup a vpravo pak rozlo¾ení pravdìpodobnosti pro výbìr dané oblasti v dal¹ím kroku (zobrazeno èervenou barvou pro vyniknutí rozdílù), kde maximální pravdìpodobnost má hodnotu $1,0$. Nejlep¹ích výsledkù je dosa¾eno pøi rozli¹ení $32 \times 32$ pro faktor $s = 250$.}
+	\label{fig:5_gs_bball}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[$32 \times 32, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_32x32-s0250.png} \label{fig:5_gs_earth-1}}
+	\subfloat[$32 \times 32, s = 1000$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_32x32-s1000.png} \label{fig:5_gs_earth-2}} \\
+	\subfloat[$8 \times 8, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_08x08-s0250.png} \label{fig:5_gs_earth-3}}
+	\subfloat[$64 \times 64, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/earth/earth_64x64-s0250.png} \label{fig:5_gs_earth-4}} \\
+	\subfloat[$32 \times 32, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_32x32-s0250.png} \label{fig:5_gs_pawn-5}}
+	\subfloat[$32 \times 32, s = 1000$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_32x32-s1000.png} \label{fig:5_gs_pawn-6}} \\
+	\subfloat[$8 \times 8, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_08x08-s0250.png} \label{fig:5_gs_pawn-7}}
+	\subfloat[$64 \times 64, s = 250$]{\includegraphics[width=7.5cm]{./fig/guiding/pawn/pawn_64x64-s0250.png} \label{fig:5_gs_pawn-8}}
+	
+	\caption{Øízené vzorkování pro zbývající dvì testovací scény. Obrázky opìt ilustrují rozdílnou kvalitu pro rùzné poèty oblastí a pro rùzné hodnoty faktoru $s$. Nejlep¹í výsledky jsou opìt pro poèet oblastí $32 \times 32$ pro obì scény. Faktor $s$ je v¹ak vhodné volit podle typu scény. Zatímco u \emph{planety Zemì} je opìt ideální faktor $s = 250$ (zmìna geometrie je velmi rychlá), u scény \emph{¹achová figurka} je dosa¾eno daleko lep¹ích výsledkù pro faktor $s = 1\,000$, nebo» nedochází k ¾ádné zmìnì geometrie, mìní se pouze stín.}
+	\label{fig:5_gs_earth_pawn}
+\end{figure}
+
+
+\begin{figure}[pt]
+	\centering
+	\subfloat[$2\,250$ vzorkù]{\includegraphics[width=5cm]{./fig/reconstruction/bball/bball_2250smpls.png} \label{fig:5_rc_bball-2250}} 
+	\subfloat[$4\,500$ vzorkù]{\includegraphics[width=5cm]{./fig/reconstruction/bball/bball_4500smpls.png} \label{fig:5_rc_bball-4500}} 
+	\subfloat[$9\,000$ vzorkù]{\includegraphics[width=5cm]{./fig/reconstruction/bball/bball_9000smpls.png} \label{fig:5_rc_bball-9000}} \\
+	\subfloat[$2\,250$ vzorkù]{\includegraphics[width=5cm]{./fig/reconstruction/earth/earth_2250smpls.png} \label{fig:5_rc_earth-2250}} 
+	\subfloat[$4\,500$ vzorkù]{\includegraphics[width=5cm]{./fig/reconstruction/earth/earth_4500smpls.png} \label{fig:5_rc_earth-4500}} 
+	\subfloat[$9\,000$ vzorkù]{\includegraphics[width=5cm]{./fig/reconstruction/earth/earth_9000smpls.png} \label{fig:5_rc_earth-9000}} \\
+	\subfloat[$2\,250$ vzorkù]{\includegraphics[width=5cm]{./fig/reconstruction/pawn/pawn_2250smpls.png} \label{fig:5_rc_pawn-2250}} 
+	\subfloat[$4\,500$ vzorkù]{\includegraphics[width=5cm]{./fig/reconstruction/pawn/pawn_4500smpls.png} \label{fig:5_rc_pawn-4500}} 
+	\subfloat[$9\,000$ vzorkù]{\includegraphics[width=5cm]{./fig/reconstruction/pawn/pawn_9000smpls.png} \label{fig:5_rc_pawn-9000}} \\
+
+	\caption{Rekonstrukce obrazu pro v¹echny scény pro rùzné poèty vzorkù aktualizovaných v jednom kroku. Pro ni¾¹í poèty vzorkù je vizuální výstup rozmazaný a neaktuální a dokonce obsahuje vìt¹í mno¾ství ¹umu (dobøe viditelné na obrázku~\ref{fig:5_rc_pawn-2250} na pozadí okolo figurky). Pro $9\,000$ vzorkù jsou výsledky relativnì dobré a artefakty jsou pøi animaci jen stì¾í postøehnutelné. Napø. u \emph{¹achové figurky} jsou rozeznatelné odlesky svìtla na povrchy figurky a okraje stínù jsou ostré, naopak pro $4\,500$ vzorkù nejsou odlesky prakticky vidìt a okraj stínu je velmi rozmazaný.}
+	\label{fig:5_rc}
+\end{figure}
